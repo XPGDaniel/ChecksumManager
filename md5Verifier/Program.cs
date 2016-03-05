@@ -38,7 +38,7 @@ namespace md5Verifier
             }
             for (int i = StartingPoint; i < md5List.Count; i++)
             {
-                //string[] lines = File.ReadAllLines(md5List[i].FullName);
+                Console.WriteLine((md5List[i]));
                 string[] lines = File.ReadAllLines(md5List[i]);
                 foreach (string line in lines)
                 {
@@ -105,9 +105,12 @@ namespace md5Verifier
 
             try
             {
-                files.AddRange(Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly));
-                foreach (var directory in Directory.GetDirectories(path))
-                    files.AddRange(GetFiles(directory, pattern));
+                if (!path.Contains("$RECYCLE.BIN"))
+                {
+                    files.AddRange(Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly));
+                    foreach (var directory in Directory.GetDirectories(path))
+                        files.AddRange(GetFiles(directory, pattern));
+                }
             }
             catch (UnauthorizedAccessException) { }
 
