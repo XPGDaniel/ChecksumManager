@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace md5Verifier
 {
@@ -15,7 +17,6 @@ namespace md5Verifier
             string checksumfile = new FileInfo(System.Reflection.Assembly.GetEntryAssembly().Location).Directory.FullName;
             string output = checksumfile + "\\output_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
             List<FileStruct> lists = new List<FileStruct>();
-            //List<FileInfo> md5List = new DirectoryInfo(checksumfile).GetFiles("*.md5", SearchOption.AllDirectories).OrderBy(o => o.Name).ToList();
             List<string> md5List = GetFiles(checksumfile, "*.md5");
             if (!File.Exists(output))
             {
@@ -27,12 +28,10 @@ namespace md5Verifier
             {
                 if (args[0].ToString().ToLowerInvariant().Contains(".md5"))
                 {
-                    //StartingPoint = md5List.FindIndex(a => a.Name.ToLowerInvariant() == args[0].ToString().ToLowerInvariant());
                     StartingPoint = md5List.FindIndex(a => a.ToLowerInvariant() == args[0].ToString().ToLowerInvariant());
                 }
                 else
                 {
-                    //StartingPoint = md5List.FindIndex(a => a.Name.ToLowerInvariant() == args[0].ToString().ToLowerInvariant() + ".md5");
                     StartingPoint = md5List.FindIndex(a => a.ToLowerInvariant() == args[0].ToString().ToLowerInvariant() + ".md5");
                 }
             }
@@ -47,7 +46,6 @@ namespace md5Verifier
                         TotalLines++;
                         FileStruct fs = new FileStruct();
                         fs.hash = line.Trim().Split('*')[0].Trim();
-                        //fs.filepath = new FileInfo(md5List[i].FullName).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim();
                         fs.filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim();
                         lists.Add(fs);
                     }
@@ -56,7 +54,6 @@ namespace md5Verifier
                 {
                     using (System.IO.StreamWriter file = File.AppendText(output))
                     {
-                        //file.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" + md5List[i].Name + " Verifying...");
                         file.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" + md5List[i].Split('\'')[md5List[i].Split('\'').Length -1] + " Verifying...");
                     }
                     foreach (FileStruct fss in lists)
@@ -85,8 +82,10 @@ namespace md5Verifier
                     }
                     lists.Clear();
                 }
-                //Console.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" + md5List[i].Name + " Checked.");
                 Console.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" +  md5List[i].Split('\'')[md5List[i].Split('\'').Length -1] + " Checked.");
+                //windows7ProgressBar.Value = ((i + 1) * 200 + md5List.Count) / (md5List.Count * 2);
+                TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + md5List.Count) / (md5List.Count * 2), 100);
+                TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
             }
             using (StreamWriter file = File.AppendText(output))
             {
