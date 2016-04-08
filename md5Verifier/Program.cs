@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Forms;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace md5Verifier
 {
@@ -48,6 +49,12 @@ namespace md5Verifier
                         fs.hash = line.Trim().Split('*')[0].Trim();
                         fs.filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim();
                         lists.Add(fs);
+                        //string pattern = @"\.\d{4}", replaced = "";
+                        //if (Regex.Match(Path.GetFileNameWithoutExtension(fs.filepath), pattern).Captures.Count > 0)
+                        //    replaced = Regex.Match(Path.GetFileNameWithoutExtension(fs.filepath), pattern).Captures[0].ToString();
+                        //string result = !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("bak") && !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("dts") && !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("ac3") ? Regex.Split(Path.GetFileNameWithoutExtension(fs.filepath), pattern)[0] : Path.GetFileName(fs.filepath);
+                        //string renewline = line.Trim().Split('*')[0] + "*" + line.Trim().Split('*')[1].Trim().Split('\\')[1];
+                        //File.WriteAllText(result + replaced + ".md5", renewline);
                     }
                 }
                 if (lists.Any())
@@ -104,7 +111,7 @@ namespace md5Verifier
 
             try
             {
-                if (!path.Contains("$RECYCLE.BIN"))
+                if (!path.Contains("$RECYCLE.BIN") && !path.Contains("#recycle"))
                 {
                     files.AddRange(Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly));
                     foreach (var directory in Directory.GetDirectories(path))
