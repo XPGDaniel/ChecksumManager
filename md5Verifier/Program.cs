@@ -27,14 +27,15 @@ namespace md5Verifier
             Console.WriteLine("No. of md5 : " + md5List.Count);
             if (args.Length == 1)
             {
-                if (args[0].ToString().ToLowerInvariant().Contains(".md5"))
-                {
-                    StartingPoint = md5List.FindIndex(a => a.ToLowerInvariant() == args[0].ToString().ToLowerInvariant());
-                }
-                else
-                {
-                    StartingPoint = md5List.FindIndex(a => a.ToLowerInvariant() == args[0].ToString().ToLowerInvariant() + ".md5");
-                }
+                StartingPoint = Convert.ToInt32(args[0]);
+                //if (args[0].ToString().ToLowerInvariant().Contains(".md5"))
+                //{
+                //    StartingPoint = md5List.FindIndex(a => a.ToLowerInvariant() == args[0].ToString().ToLowerInvariant());
+                //}
+                //else
+                //{
+                //    StartingPoint = md5List.FindIndex(a => a.ToLowerInvariant() == args[0].ToString().ToLowerInvariant() + ".md5");
+                //}
             }
             for (int i = StartingPoint; i < md5List.Count; i++)
             {
@@ -90,7 +91,6 @@ namespace md5Verifier
                     lists.Clear();
                 }
                 Console.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" +  md5List[i].Split('\'')[md5List[i].Split('\'').Length -1] + " Checked.");
-                //windows7ProgressBar.Value = ((i + 1) * 200 + md5List.Count) / (md5List.Count * 2);
                 TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + md5List.Count) / (md5List.Count * 2), 100);
                 TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
             }
