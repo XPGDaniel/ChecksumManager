@@ -17,12 +17,14 @@ namespace md5Verifier
             int StartingPoint = 0, TotalLines = 0, Damaged = 0, OK = 0, Missing = 0;
             string checksumfile = new FileInfo(System.Reflection.Assembly.GetEntryAssembly().Location).Directory.FullName;
             string output = checksumfile + "\\output_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
-            bool VerifyChecksums = false;
+            bool VerifyChecksums = false, CombineOnly = false; ;
             List<FileStruct> lists = new List<FileStruct>();
+            StringBuilder builder = new StringBuilder();
             List<string> md5List = GetFiles(checksumfile, "*.md5");
             Console.WriteLine("Proccessing Mode");
             Console.WriteLine("A. Verify Checksums (You could input integer instead of A, initial index is 0.)");
             Console.WriteLine("B. Verify File Existences Only");
+            Console.WriteLine("C. Combine All md5s into One");
             Console.WriteLine("Select Proccessing Mode : ");
             try
             {
@@ -40,9 +42,15 @@ namespace md5Verifier
                         case "a":
                             StartingPoint = 0;
                             VerifyChecksums = true;
+                            CombineOnly = false;
                             break;
                         case "b":
                             VerifyChecksums = false;
+                            CombineOnly = false;
+                            break;
+                        case "c":
+                            VerifyChecksums = false;
+                            CombineOnly = true;
                             break;
                     }
                 }
@@ -77,86 +85,119 @@ namespace md5Verifier
                 {
                     if (!string.IsNullOrEmpty(line.Trim()))
                     {
-                        TotalLines++;
-                        FileStruct fs = new FileStruct();
-                        fs.hash = line.Trim().Split('*')[0].Trim();
-                        fs.filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim();
-                        lists.Add(fs);
-                        //string pattern = @"\.\d{4}", replaced = "";
-                        //if (Regex.Match(Path.GetFileNameWithoutExtension(fs.filepath), pattern).Captures.Count > 0)
-                        //    replaced = Regex.Match(Path.GetFileNameWithoutExtension(fs.filepath), pattern).Captures[0].ToString();
-                        //string result = !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("bak") && !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("dts") && !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("ac3") ? Regex.Split(Path.GetFileNameWithoutExtension(fs.filepath), pattern)[0] : Path.GetFileName(fs.filepath);
-                        //string renewline = line.Trim().Split('*')[0] + "*" + line.Trim().Split('*')[1].Trim().Split('\\')[1];
-                        //File.WriteAllText(result + replaced + ".md5", renewline);
+                        //if (!CombineOnly)
+                        //{
+                            TotalLines++;
+                            FileStruct fs = new FileStruct();
+                            fs.hash = line.Trim().Split('*')[0].Trim();
+                            fs.filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim();
+                            lists.Add(fs);
+                            //string pattern = @"\.\d{4}", replaced = "";
+                            //if (Regex.Match(Path.GetFileNameWithoutExtension(fs.filepath), pattern).Captures.Count > 0)
+                            //    replaced = Regex.Match(Path.GetFileNameWithoutExtension(fs.filepath), pattern).Captures[0].ToString();
+                            //string result = !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("bak") && !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("dts") && !Path.GetExtension(fs.filepath).ToLowerInvariant().Contains("ac3") ? Regex.Split(Path.GetFileNameWithoutExtension(fs.filepath), pattern)[0] : Path.GetFileName(fs.filepath);
+                            //string renewline = line.Trim().Split('*')[0] + "*" + line.Trim().Split('*')[1].Trim().Split('\\')[1];
+                            //File.WriteAllText(result + replaced + ".md5", renewline);
+                        //}
+                        //else
+                        //{
+                        //    builder.Append(line.Trim()).AppendLine();
+                        //}
                     }
                 }
                 if (lists.Any())
                 {
-                    using (System.IO.StreamWriter file = File.AppendText(output))
+                    if (!CombineOnly)
                     {
-                        file.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" + md5List[i].Split('\'')[md5List[i].Split('\'').Length - 1] + " Verifying...");
-                    }
-                    foreach (FileStruct fss in lists)
-                    {
-                        if (File.Exists(fss.filepath))
+                        using (System.IO.StreamWriter file = File.AppendText(output))
                         {
-                            if (VerifyChecksums)
+                            file.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" + md5List[i].Split('\'')[md5List[i].Split('\'').Length - 1] + " Proccessing...");
+                        }
+                        foreach (FileStruct fss in lists)
+                        {
+                            if (File.Exists(fss.filepath))
                             {
-                                if (fss.hash.ToLowerInvariant() == computeMD5(fss.filepath).ToLowerInvariant())
+                                if (VerifyChecksums)
                                 {
-                                    using (StreamWriter file = File.AppendText(output))
+                                    if (fss.hash.ToLowerInvariant() == computeMD5(fss.filepath).ToLowerInvariant())
                                     {
-                                        file.WriteLine("OK \t" + Path.GetFileName(fss.filepath));
+                                        using (StreamWriter file = File.AppendText(output))
+                                        {
+                                            file.WriteLine("OK \t" + Path.GetFileName(fss.filepath));
+                                        }
+                                        OK++;
                                     }
-                                    OK++;
+                                    else
+                                    {
+                                        using (StreamWriter file = File.AppendText(output))
+                                        {
+                                            file.WriteLine("Damaged \t" + Path.GetFileName(fss.filepath));
+                                        }
+                                        Damaged++;
+                                    }
                                 }
                                 else
                                 {
                                     using (StreamWriter file = File.AppendText(output))
                                     {
-                                        file.WriteLine("Damaged \t" + Path.GetFileName(fss.filepath));
+                                        file.WriteLine("Exist \t" + Path.GetFileName(fss.filepath));
                                     }
-                                    Damaged++;
+                                    OK++;
                                 }
                             }
                             else
                             {
                                 using (StreamWriter file = File.AppendText(output))
                                 {
-                                    file.WriteLine("Exist \t" + Path.GetFileName(fss.filepath));
+                                    file.WriteLine("Missing \t" + Path.GetFileName(fss.filepath));
                                 }
-                                OK++;
+                                Missing++;
                             }
                         }
-                        else
+                        using (StreamWriter file = File.AppendText(output))
                         {
-                            using (StreamWriter file = File.AppendText(output))
-                            {
-                                file.WriteLine("Missing \t" + Path.GetFileName(fss.filepath));
-                            }
-                            Missing++;
+                            file.WriteLine("Verification Completed");
+                            file.WriteLine("----------------------");
                         }
+                        Console.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" + md5List[i].Split('\'')[md5List[i].Split('\'').Length - 1] + " Checked.");
+                        TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + md5List.Count) / (md5List.Count * 2), 100);
+                        TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
                     }
-                    using (StreamWriter file = File.AppendText(output))
+                    else
                     {
-                        file.WriteLine("Verification Completed");
-                        file.WriteLine("----------------------");
+                        //using (FileStream file = File.Create(output))
+                        //{ }
+                        foreach (FileStruct fss in lists)
+                        {
+                            builder.Append(fss.hash + " *" + fss.filepath.Substring(fss.filepath.IndexOf("\\")+1)).AppendLine();
+                        }
                     }
                     lists.Clear();
                 }
-                Console.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" + md5List[i].Split('\'')[md5List[i].Split('\'').Length - 1] + " Checked.");
-                TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + md5List.Count) / (md5List.Count * 2), 100);
-                TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
             }
-            using (StreamWriter file = File.AppendText(output))
+            if (!CombineOnly)
             {
-                file.WriteLine("Total files checked : " + TotalLines);
-                file.WriteLine("Good : " + OK + ", Damaged : " + Damaged + ", Missing : " + Missing);
-                file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                using (StreamWriter file = File.AppendText(output))
+                {
+                    file.WriteLine("Total files checked : " + TotalLines);
+                    file.WriteLine("Good : " + OK + ", Damaged : " + Damaged + ", Missing : " + Missing);
+                    file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                }
+                Console.WriteLine("Total files checked : " + TotalLines);
+                Console.WriteLine("Good : " + OK + ", Damaged : " + Damaged + ", Missing : " + Missing);
+                Console.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             }
-            Console.WriteLine("Total files checked : " + TotalLines);
-            Console.WriteLine("Good : " + OK + ", Damaged : " + Damaged + ", Missing : " + Missing);
-            Console.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            else
+            {
+                if (builder.Length > 0)
+                {
+                    using (TextWriter writer = File.CreateText(output))
+                    {
+                        writer.Write(builder.ToString());
+                    }
+                    builder.Clear();
+                }
+            }
             Console.ReadKey();
         }
         static private List<string> GetFiles(string path, string pattern)
