@@ -11,28 +11,26 @@ namespace md5Verifier
     class Program
     {
         public static DateTime FilterDate = DateTime.MinValue;
+        public static bool VerifyChecksums = false, CombineOnly = false, UseDateFilter = false;
+        public static string checksumfile = new FileInfo(System.Reflection.Assembly.GetEntryAssembly().Location).Directory.FullName;
+        public static string output = "";
         static void Main(string[] args)
         {
-            int StartingPoint = 0, TotalLines = 0, Damaged = 0, OK = 0, Missing = 0;
-            string checksumfile = new FileInfo(System.Reflection.Assembly.GetEntryAssembly().Location).Directory.FullName;
-            string output = checksumfile + "\\output_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
-            bool VerifyChecksums = false, CombineOnly = false, UseDateFilter = false; ;
-            List<FileStruct> lists = new List<FileStruct>();
-            StringBuilder builder = new StringBuilder();
+            int StartingPoint = 0;
             Console.WriteLine("Proccessing Mode");
             Console.WriteLine("A. Verify Checksums");
             Console.WriteLine("\t(You could input integer instead of A, initial index is 0.)");
             Console.WriteLine("\t(or input date format yyyy-MM-dd as Date filter, like " + DateTime.Today.ToString("yyyy-MM-dd") + " .)");
             Console.WriteLine("B. Verify File Existences Only");
             Console.WriteLine("C. Combine All md5s into One");
+            Console.WriteLine("D. Create Checksum for every folder.");
             Console.WriteLine("Select Proccessing Mode : ");
-            DateTime PStart = DateTime.MinValue;
             try
             {
+                output = checksumfile + "\\output_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
                 string response = Console.ReadLine().ToLowerInvariant();
-                PStart = DateTime.Now;
                 int index = 0;
-                if (response.Contains("-"))
+                if (response.Contains("-") && char.IsDigit(response[0]))
                 {
                     if (DateTime.TryParse(response, out FilterDate))
                     {
@@ -70,14 +68,53 @@ namespace md5Verifier
                             VerifyChecksums = false;
                             CombineOnly = true;
                             break;
+                        case "d":
+                            VerifyChecksums = false;
+                            CombineOnly = false;
+                            break;
                     }
                 }
+                else if (response.Length > 1 && response.ToLowerInvariant().StartsWith("d"))
+                {
+                    if (DateTime.TryParse(response.Split(' ')[1], out FilterDate))
+                    {
+                        StartingPoint = 0;
+                        UseDateFilter = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid Date, Program Terminated.");
+                        Console.ReadKey();
+                        return;
+                    }
+                }
+                switch (response.ToLowerInvariant()[0])
+                {
+                    case 'd':
+                        Create();
+                        break;
+                    default:
+                    case 'a':
+                    case 'b':
+                    case 'c':
+                        Verify(StartingPoint);
+                        break;
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 VerifyChecksums = false;
                 UseDateFilter = false;
+                Console.WriteLine(ex.ToString());
             }
+            Console.ReadKey();
+        }
+        static void Verify(int StartingPoint)
+        {
+            DateTime PStart = DateTime.Now;
+            int TotalLines = 0, Damaged = 0, OK = 0, Missing = 0;
+            List<FileStruct> lists = new List<FileStruct>();
+            StringBuilder builder = new StringBuilder();
             List<string> md5List = GetFiles(checksumfile, "*.md5", UseDateFilter);
             if (!File.Exists(output))
             {
@@ -87,7 +124,6 @@ namespace md5Verifier
             Console.WriteLine("No. of md5 : " + md5List.Count);
             for (int i = StartingPoint; i < md5List.Count; i++)
             {
-                //Console.WriteLine((md5List[i]));
                 string[] lines = File.ReadAllLines(md5List[i]);
                 foreach (string line in lines)
                 {
@@ -199,8 +235,69 @@ namespace md5Verifier
                     }
                     builder.Clear();
                 }
+                Console.WriteLine("Completed!");
             }
-            Console.ReadKey();
+        }
+
+        static void Create()
+        {
+            DateTime PStart = DateTime.Now;
+            int TotalLines = 0, OK = 0;
+            List<string> folderList = Getfolders(checksumfile).ToList();
+            for (int i = 0; i < folderList.Count; i++)
+            {
+                List<FileStruct> lists = new List<FileStruct>();
+                StringBuilder builder = new StringBuilder();
+
+                foreach (string line in GetFiles(folderList[i], "*.*", false))
+                {
+                    FileStruct fs = new FileStruct();
+                    fs.hash = computeMD5(line);
+                    fs.filepath = line.Replace(folderList[i] + "\\", "");
+                    lists.Add(fs);
+                }
+                if (lists.Any())
+                {
+                    foreach (FileStruct fss in lists)
+                    {
+                        builder.Append(fss.hash + " *" + fss.filepath).AppendLine();
+                        OK++;
+                    }
+                    lists.Clear();
+                }
+
+                if (builder.Length > 0)
+                {
+                    bool avail = false;
+                    int retry = 1;
+                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + ".md5");
+                    while (!avail)
+                    {
+                        if (!File.Exists(output))
+                        {
+                            avail = true;
+                        }
+                        else
+                        {
+                            output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + retry.ToString() + ".md5");
+                            retry++;
+                        }
+                    }
+                    using (TextWriter writer = File.CreateText(output))
+                    {
+                        writer.Write(builder.ToString());
+                    }
+                    builder.Clear();
+                }
+                TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + folderList.Count) / (folderList.Count * 2), 100);
+                TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
+                TotalLines = i + 1;
+                Console.WriteLine(Convert.ToString(TotalLines) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+            }
+            TimeSpan ts = DateTime.Now.Subtract(PStart);
+            Console.WriteLine("Md5 checksume files generated : " + TotalLines + ", Total files checksumed : " + OK);
+            Console.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            Console.WriteLine("Time Elapse : " + ts.ToString());
         }
         static private List<string> GetFiles(string path, string pattern, bool UseDateFilter)
         {
@@ -237,7 +334,42 @@ namespace md5Verifier
             }
             catch (UnauthorizedAccessException) { }
 
-            return files;
+            return files.Where(x => !x.ToLowerInvariant().Contains("thumb.db") && !x.ToLowerInvariant().Contains("desktop.ini")).ToList();
+        }
+        static private List<string> Getfolders(string path)
+        {
+            var folders = new List<string>();
+
+            try
+            {
+                //var results = Directory.GetDirectories(path).ToList();
+                //folders = results.Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information")).ToList();
+                if (UseDateFilter)
+                {
+                    string[] candidates = Directory.GetDirectories(path);
+                    foreach (string c in candidates)
+                    {
+                        DirectoryInfo di = new DirectoryInfo(c);
+                        DateTime DirectoryDate = DateTime.MinValue;
+                        if (di.LastWriteTime > di.CreationTime)
+                            DirectoryDate = di.LastWriteTime;
+                        else
+                            DirectoryDate = di.CreationTime;
+                        if (Convert.ToDateTime(DirectoryDate.ToString("yyyy-MM-dd")) >= FilterDate)
+                        {
+                            folders.Add(c);
+                        }
+                    }
+                    folders = folders.Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information")).ToList();
+                }
+                else
+                {
+                    folders.AddRange(Directory.GetDirectories(path).ToList().Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information")).ToList());
+                }
+            }
+            catch (UnauthorizedAccessException) { }
+
+            return folders;
         }
         static string computeMD5(string path)
         {
