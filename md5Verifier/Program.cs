@@ -251,10 +251,17 @@ namespace md5Verifier
 
                 foreach (string line in GetFiles(folderList[i], "*.*", false))
                 {
-                    FileStruct fs = new FileStruct();
-                    fs.hash = computeMD5(line);
-                    fs.filepath = line.Replace(folderList[i] + "\\", "");
-                    lists.Add(fs);
+                    try
+                    {
+                        FileStruct fs = new FileStruct();
+                        fs.hash = computeMD5(line);
+                        fs.filepath = line.Replace(folderList[i] + "\\", "");
+                        lists.Add(fs);
+                    }
+                    catch (UnauthorizedAccessException uaex)
+                    {
+                        Console.WriteLine(uaex.Message);
+                    }
                 }
                 if (lists.Any())
                 {
