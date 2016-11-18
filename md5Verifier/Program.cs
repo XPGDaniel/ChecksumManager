@@ -312,7 +312,7 @@ namespace md5Verifier
 
             try
             {
-                if (!path.Contains("$RECYCLE.BIN") && !path.Contains("#recycle"))
+                if (!path.Contains("$RECYCLE.BIN") && !path.Contains("#recycle") && !path.Contains("@Recycle"))
                 {
                     if (UseDateFilter)
                     {
@@ -367,11 +367,11 @@ namespace md5Verifier
                             folders.Add(c);
                         }
                     }
-                    folders = folders.Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information")).ToList();
+                    folders = folders.Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information") && !x.Contains("@Recycle")).ToList();
                 }
                 else
                 {
-                    folders.AddRange(Directory.GetDirectories(path).ToList().Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information")).ToList());
+                    folders.AddRange(Directory.GetDirectories(path).ToList().Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information") && !x.Contains("@Recycle")).ToList());
                 }
             }
             catch (UnauthorizedAccessException) { }
