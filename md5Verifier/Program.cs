@@ -359,7 +359,15 @@ namespace md5Verifier
             }
             catch (UnauthorizedAccessException) { }
 
-            return files.Where(x => !x.ToLowerInvariant().Contains("thumbs.db") && !x.ToLowerInvariant().Contains("desktop.ini") && !x.ToLowerInvariant().Contains("md5")).ToList();
+            switch (pattern)
+            {
+                case "*.*": //Create
+                    return files.Where(x => !x.ToLowerInvariant().Contains("thumbs.db") && !x.ToLowerInvariant().Contains("desktop.ini") && !x.ToLowerInvariant().Contains("md5")).ToList();
+
+                default: //Verify
+                    return files.Where(x => !x.ToLowerInvariant().Contains("thumbs.db") && !x.ToLowerInvariant().Contains("desktop.ini")).ToList();
+
+            }
         }
         static private List<string> Getfolders(string path)
         {
