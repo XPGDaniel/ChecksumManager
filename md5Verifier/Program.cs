@@ -24,6 +24,7 @@ namespace md5Verifier
             Console.WriteLine("B. Verify File Existences Only");
             Console.WriteLine("C. Combine All md5s into One");
             Console.WriteLine("D. Create Checksum for every folder.");
+            Console.WriteLine("\t(append input date format yyyy-MM-dd as Date filter, like d " + DateTime.Today.ToString("yyyy-MM-dd") + " .)");
             Console.WriteLine("Select Proccessing Mode : ");
             try
             {
@@ -80,6 +81,7 @@ namespace md5Verifier
                     {
                         StartingPoint = 0;
                         UseDateFilter = true;
+                        output = checksumfile + "\\output_partial_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
                     }
                     else
                     {
@@ -244,6 +246,7 @@ namespace md5Verifier
             DateTime PStart = DateTime.Now;
             int TotalLines = 0, OK = 0;
             List<string> folderList = Getfolders(checksumfile).ToList();
+            string log = output;
             for (int i = 0; i < folderList.Count; i++)
             {
                 List<FileStruct> lists = new List<FileStruct>();
@@ -261,6 +264,10 @@ namespace md5Verifier
                     catch (UnauthorizedAccessException uaex)
                     {
                         Console.WriteLine(uaex.Message);
+                        using (StreamWriter file = File.AppendText(log))
+                        {
+                            file.WriteLine(uaex.Message);
+                        }
                     }
                 }
                 if (lists.Any())
@@ -300,11 +307,21 @@ namespace md5Verifier
                 TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
                 TotalLines = i + 1;
                 Console.WriteLine(Convert.ToString(TotalLines) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+                using (StreamWriter file = File.AppendText(log))
+                {
+                    file.WriteLine(Convert.ToString(TotalLines) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+                }
             }
             TimeSpan ts = DateTime.Now.Subtract(PStart);
             Console.WriteLine("Md5 checksume files generated : " + TotalLines + ", Total files checksumed : " + OK);
             Console.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             Console.WriteLine("Time Elapse : " + ts.ToString());
+            using (StreamWriter file = File.AppendText(log))
+            {
+                file.WriteLine("Md5 checksume files generated : " + TotalLines + ", Total files checksumed : " + OK);
+                file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                file.WriteLine("Time Elapse : " + ts.ToString());
+            }
         }
         static private List<string> GetFiles(string path, string pattern, bool UseDateFilter)
         {
@@ -326,6 +343,7 @@ namespace md5Verifier
                             else
                                 FileDate = fi.CreationTime;
                             if (Convert.ToDateTime(FileDate.ToString("yyyy-MM-dd")) >= FilterDate)
+                            //&& (fi.FullName.Substring(fi.FullName.Length-4).ToLowerInvariant().Contains("md5") == false))
                             {
                                 files.Add(c);
                             }
@@ -341,7 +359,7 @@ namespace md5Verifier
             }
             catch (UnauthorizedAccessException) { }
 
-            return files.Where(x => !x.ToLowerInvariant().Contains("thumb.db") && !x.ToLowerInvariant().Contains("desktop.ini")).ToList();
+            return files.Where(x => !x.ToLowerInvariant().Contains("thumbs.db") && !x.ToLowerInvariant().Contains("desktop.ini") && !x.ToLowerInvariant().Contains("md5")).ToList();
         }
         static private List<string> Getfolders(string path)
         {
