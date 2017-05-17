@@ -12,8 +12,11 @@ namespace md5Verifier
     {
         public static DateTime FilterDate = DateTime.MinValue;
         public static bool VerifyChecksums = false, CombineOnly = false, UseDateFilter = false;
-        public static string checksumfile = new FileInfo(System.Reflection.Assembly.GetEntryAssembly().Location).Directory.FullName;
+        private static string checksumfile = new FileInfo(System.Reflection.Assembly.GetEntryAssembly().Location).Directory.FullName;
         public static string output = "";
+
+        public static string Checksumfile { get => checksumfile; set => checksumfile = value; }
+
         static void Main(string[] args)
         {
             int StartingPoint = 0;
@@ -28,7 +31,7 @@ namespace md5Verifier
             Console.WriteLine("Select Proccessing Mode : ");
             try
             {
-                output = checksumfile + "\\output_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
+                output = Checksumfile + "\\output_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
                 string response = Console.ReadLine().ToLowerInvariant();
                 int index = 0;
                 if (response.Contains("-") && char.IsDigit(response[0]))
@@ -38,7 +41,7 @@ namespace md5Verifier
                         StartingPoint = 0;
                         VerifyChecksums = true;
                         UseDateFilter = true;
-                        output = checksumfile + "\\output_partial_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
+                        output = Checksumfile + "\\output_partial_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
                     }
                     else
                     {
@@ -81,7 +84,7 @@ namespace md5Verifier
                     {
                         StartingPoint = 0;
                         UseDateFilter = true;
-                        output = checksumfile + "\\output_partial_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
+                        output = Checksumfile + "\\output_partial_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
                     }
                     else
                     {
@@ -117,7 +120,7 @@ namespace md5Verifier
             int TotalLines = 0, Damaged = 0, OK = 0, Missing = 0;
             List<FileStruct> lists = new List<FileStruct>();
             StringBuilder builder = new StringBuilder();
-            List<string> md5List = GetFiles(checksumfile, "*.md5", UseDateFilter);
+            List<string> md5List = GetFiles(Checksumfile, "*.md5", UseDateFilter);
             if (!File.Exists(output))
             {
                 using (StreamWriter file = File.CreateText(output))
@@ -247,7 +250,7 @@ namespace md5Verifier
         {
             DateTime PStart = DateTime.Now;
             int TotalLines = 0, OK = 0;
-            List<string> folderList = Getfolders(checksumfile).ToList();
+            List<string> folderList = Getfolders(Checksumfile).ToList();
             string log = output;
             for (int i = 0; i < folderList.Count; i++)
             {
