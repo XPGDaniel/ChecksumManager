@@ -132,9 +132,11 @@ namespace md5Verifier
                     if (!string.IsNullOrEmpty(line.Trim()))
                     {
                         TotalLines++;
-                        FileStruct fs = new FileStruct();
-                        fs.hash = line.Trim().Split('*')[0].Trim();
-                        fs.filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim();
+                        FileStruct fs = new FileStruct()
+                        {
+                            hash = line.Trim().Split('*')[0].Trim(),
+                            filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim()
+                        };
                         lists.Add(fs);
                         //string pattern = @"\.\d{4}", replaced = "";
                         //if (Regex.Match(Path.GetFileNameWithoutExtension(fs.filepath), pattern).Captures.Count > 0)
@@ -158,7 +160,7 @@ namespace md5Verifier
                             {
                                 if (VerifyChecksums)
                                 {
-                                    if (fss.hash.ToLowerInvariant() == computeMD5(fss.filepath).ToLowerInvariant())
+                                    if (fss.hash.ToLowerInvariant() == ComputeMD5(fss.filepath).ToLowerInvariant())
                                     {
                                         using (StreamWriter file = File.AppendText(output))
                                         {
@@ -256,9 +258,11 @@ namespace md5Verifier
                 {
                     try
                     {
-                        FileStruct fs = new FileStruct();
-                        fs.hash = computeMD5(line);
-                        fs.filepath = line.Replace(folderList[i] + "\\", "");
+                        FileStruct fs = new FileStruct()
+                        {
+                            hash = ComputeMD5(line),
+                            filepath = line.Replace(folderList[i] + "\\", "")
+                        };
                         lists.Add(fs);
                     }
                     catch (UnauthorizedAccessException uaex)
@@ -404,7 +408,7 @@ namespace md5Verifier
 
             return folders;
         }
-        static string computeMD5(string path)
+        static string ComputeMD5(string path)
         {
             using (var md5 = MD5.Create())
             {
