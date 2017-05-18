@@ -19,6 +19,13 @@ namespace md5Verifier
 
         static void Main(string[] args)
         {
+            //string reallyLongDirectory = @"C:\Users\Daniel\Source\Repos\FolderRenameAssist\FolderRenameAssist\bin\Debug\New folder\[Ano Hi Mita Hana no Namae o Bokutachi wa Mada Shiranai][あの日見た花の名前を僕達はまだ知らない.][ANK-Raws] 劇場版 あの日見た花の名前を僕達はまだ知らない。 (BDrip x264 FLAC DTS TRUE-HD 5.1ch SUP Hi10P)\New Text Document.txt";
+            //string reallyLongFile = @"C:\L\[Fullmetal Alchemist][Hagane no Renkinjutsushi][鋼の錬金術師][Kuro-Raws] Fullmetal Alchemist - The Sacred Star of Milos (BDRip 1080p H.264-Hi10P FLACx2)\[Kuro-Raws] Fullmetal Alchemist - The Sacred Star of Milos (BDRip 1080p H.264-Hi10P FLACx2 DTSx3) [21A184A1].mkv";
+            //Console.WriteLine($"Creating a directory that is {reallyLongDirectory.Length} characters long");
+            //Directory.CreateDirectory(reallyLongDirectory);
+
+            //Console.WriteLine(reallyLongFile);
+            //Console.WriteLine(File.Exists(reallyLongFile));
             int StartingPoint = 0;
             Console.WriteLine("Proccessing Mode");
             Console.WriteLine("A. Verify Checksums");
