@@ -33,8 +33,9 @@ namespace md5Verifier
             Console.WriteLine("\t(You could input integer instead of A, initial index is 0.)");
             Console.WriteLine("\t(or input date format yyyy-MM-dd as Date filter, like " + DateTime.Today.ToString("yyyy-MM-dd") + " .)");
             Console.WriteLine("B. Verify File Existences Only");
-            Console.WriteLine("C. Combine All md5s into One");
-            Console.WriteLine("D. Create Checksum for every folder.");
+            Console.WriteLine("C. Verify Path Length");
+            Console.WriteLine("D. Combine All md5s into One");
+            Console.WriteLine("E. Create Checksum for every folder.");
             Console.WriteLine("\t(append input date format yyyy-MM-dd as Date filter, like d " + DateTime.Today.ToString("yyyy-MM-dd") + " .)");
             Console.WriteLine("Select Proccessing Mode : ");
             try
@@ -73,14 +74,15 @@ namespace md5Verifier
                             CombineOnly = false;
                             break;
                         case "b":
+                        case "c":
                             VerifyChecksums = false;
                             CombineOnly = false;
                             break;
-                        case "c":
+                        case "d":
                             VerifyChecksums = false;
                             CombineOnly = true;
                             break;
-                        case "d":
+                        case "e":
                             VerifyChecksums = false;
                             CombineOnly = false;
                             break;
@@ -103,13 +105,16 @@ namespace md5Verifier
                 }
                 switch (response.ToLowerInvariant()[0])
                 {
-                    case 'd':
+                    case 'c':
+                        VerifyPath();
+                        break;
+                    case 'e':
                         Create();
                         break;
                     default:
                     case 'a':
                     case 'b':
-                    case 'c':
+                    case 'd':
                         Verify(StartingPoint);
                         break;
                 }
@@ -253,7 +258,60 @@ namespace md5Verifier
                 Console.WriteLine("Completed!");
             }
         }
-
+        static void VerifyPath()
+        {
+            int Exist = 0, Toolong = 0, Missing = 0;
+            List<string> fileList = GetFiles(Checksumfile, "*.*", UseDateFilter);
+            if (!File.Exists(output))
+            {
+                using (StreamWriter file = File.CreateText(output))
+                { }
+            }
+            Console.WriteLine("No. of files : " + fileList.Count);
+            for (int i = 0; i < fileList.Count; i++)
+            {
+                if (File.Exists(fileList[i]))
+                {
+                    try
+                    {
+                        Path.GetFullPath(fileList[i]);
+                        //using (StreamWriter file = File.AppendText(output))
+                        //{
+                        //    file.WriteLine("Exist \t" + fileList[i]);
+                        //}
+                        Exist++;
+                    }
+                    catch (PathTooLongException ptle)
+                    {
+                        using (StreamWriter file = File.AppendText(output))
+                        {
+                            file.WriteLine("Toolong \t" + fileList[i]);
+                        }
+                        Toolong++;
+                    }
+                }
+                else
+                {
+                    using (StreamWriter file = File.AppendText(output))
+                    {
+                        file.WriteLine("Missing \t" + fileList[i]);
+                    }
+                    Missing++;
+                }
+                TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + fileList.Count) / (fileList.Count * 2), 100);
+                TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
+            }
+            using (StreamWriter file = File.AppendText(output))
+            {
+                    file.WriteLine("Total files checked : " + fileList.Count);
+                    file.WriteLine("Exist : " + Exist + ", Toolong : " + Toolong + ", Missing : " + Missing);
+                Console.WriteLine("Total files checked : " + fileList.Count);
+                Console.WriteLine("Exist : " + Exist + ", Toolong : " + Toolong + ", Missing : " + Missing);
+                file.WriteLine("Verification Completed");
+                file.WriteLine("----------------------");
+            }
+            Console.WriteLine("Completed!");
+        }
         static void Create()
         {
             DateTime PStart = DateTime.Now;
