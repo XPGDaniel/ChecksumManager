@@ -137,7 +137,15 @@ namespace md5Verifier
             if (!File.Exists(output))
             {
                 using (StreamWriter file = File.CreateText(output))
-                { }
+                {
+                    StringBuilder md5listbuilder = new StringBuilder();
+                    foreach (var md5 in md5List)
+                    {
+                        md5listbuilder.Append(md5).AppendLine();
+                    }
+                    file.Write(md5listbuilder.ToString());
+                    md5listbuilder.Clear();
+                }
             }
             Console.WriteLine("No. of md5 : " + md5List.Count);
             for (int i = StartingPoint; i < md5List.Count; i++)
@@ -150,9 +158,18 @@ namespace md5Verifier
                         TotalLines++;
                         FileStruct fs = new FileStruct()
                         {
-                            hash = line.Trim().Split('*')[0].Trim(),
-                            filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim()
+                            hash = line.Trim().Split('*')[0].Trim()
+                            //filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim()
                         };
+                        if (line.Contains("*"))
+                        {
+                            fs.filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim();
+                        }
+                        else
+                        {
+                            fs.filepath = new FileInfo(md5List[i]).Directory.FullName + "\\" + line.Trim().Substring(33).Trim();
+                        }
+
                         lists.Add(fs);
                         //string pattern = @"\.\d{4}", replaced = "";
                         //if (Regex.Match(Path.GetFileNameWithoutExtension(fs.filepath), pattern).Captures.Count > 0)
@@ -303,8 +320,8 @@ namespace md5Verifier
             }
             using (StreamWriter file = File.AppendText(output))
             {
-                    file.WriteLine("Total files checked : " + fileList.Count);
-                    file.WriteLine("Exist : " + Exist + ", Toolong : " + Toolong + ", Missing : " + Missing);
+                file.WriteLine("Total files checked : " + fileList.Count);
+                file.WriteLine("Exist : " + Exist + ", Toolong : " + Toolong + ", Missing : " + Missing);
                 Console.WriteLine("Total files checked : " + fileList.Count);
                 Console.WriteLine("Exist : " + Exist + ", Toolong : " + Toolong + ", Missing : " + Missing);
                 file.WriteLine("Verification Completed");
