@@ -32,10 +32,9 @@ namespace md5Verifier
             Console.WriteLine("A. Verify Checksums");
             Console.WriteLine("\t(You could input integer instead of A, initial index is 0.)");
             Console.WriteLine("\t(or input date format yyyy-MM-dd as Date filter, like " + DateTime.Today.ToString("yyyy-MM-dd") + " .)");
-            Console.WriteLine("B. Verify File Existences Only");
-            Console.WriteLine("C. Verify Path Length");
-            Console.WriteLine("D. Combine All md5s into One");
-            Console.WriteLine("E. Create Checksum for every folder.");
+            Console.WriteLine("B. Verify File Existences and Path Length");
+            Console.WriteLine("C. Combine All md5s into One");
+            Console.WriteLine("D. Create Checksum for every folder.");
             Console.WriteLine("\t(append input date format yyyy-MM-dd as Date filter, like d " + DateTime.Today.ToString("yyyy-MM-dd") + " .)");
             Console.WriteLine("Select Proccessing Mode : ");
             try
@@ -74,15 +73,14 @@ namespace md5Verifier
                             CombineOnly = false;
                             break;
                         case "b":
-                        case "c":
                             VerifyChecksums = false;
                             CombineOnly = false;
                             break;
-                        case "d":
+                        case "c":
                             VerifyChecksums = false;
                             CombineOnly = true;
                             break;
-                        case "e":
+                        case "d":
                             VerifyChecksums = false;
                             CombineOnly = false;
                             break;
@@ -105,16 +103,18 @@ namespace md5Verifier
                 }
                 switch (response.ToLowerInvariant()[0])
                 {
-                    case 'c':
+                    case 'd':
+                        Exp(0);
+                        break;
+                    case 'b':
                         VerifyPath();
                         break;
-                    case 'e':
-                        Create();
-                        break;
+                    //case 'd':
+                    //    Create();
+                    //    break;
                     default:
                     case 'a':
-                    case 'b':
-                    case 'd':
+                    case 'c':
                         Verify(StartingPoint);
                         break;
                 }
@@ -275,6 +275,175 @@ namespace md5Verifier
                 Console.WriteLine("Completed!");
             }
         }
+        static void Exp(int StartingPoint)
+        {
+            DateTime PStart = DateTime.Now;
+            int TotalLines = 0, Damaged = 0, OK = 0, Missing = 0;
+            List<FileCheckStat> lists = new List<FileCheckStat>();
+            List<FileCheckStat> DamagedList = new List<FileCheckStat>();
+            List<FileCheckStat> MissingList = new List<FileCheckStat>();
+            StringBuilder builder = new StringBuilder();
+            StringBuilder dmgbuilder = new StringBuilder();
+            StringBuilder missingbuilder = new StringBuilder();
+            List<string> folderList = Getfolders(Checksumfile).ToList();
+            List<string> md5List = GetFiles(Checksumfile, "*.md5", UseDateFilter);
+            string log = output;
+            if (!File.Exists(log))
+            {
+                using (StreamWriter file = File.CreateText(output))
+                {
+                }
+            }
+            Console.WriteLine("No. of md5 : " + md5List.Count);
+            Console.WriteLine("No. of folders : " + folderList.Count);
+            for (int i = StartingPoint; i < folderList.Count; i++)
+            {
+                string md5f = md5List.FirstOrDefault(s => Path.GetFileNameWithoutExtension(s) == Path.GetFileName(folderList[i]));
+                if (!string.IsNullOrEmpty(md5f))
+                {
+                    string[] lines = File.ReadAllLines(md5f);
+                    List<FileCheckStat> FileStatslist = new List<FileCheckStat>();
+                    foreach (string line in lines)
+                    {
+                        if (!string.IsNullOrEmpty(line.Trim()))
+                        {
+                            FileCheckStat fs = new FileCheckStat()
+                            {
+                                hash = line.Trim().Split('*')[0].Trim()
+                            };
+                            if (line.Contains("*"))
+                            {
+                                fs.filepath = new FileInfo(md5f).Directory.FullName + "\\" + line.Trim().Split('*')[1].Trim();
+                            }
+                            else
+                            {
+                                fs.filepath = new FileInfo(md5f).Directory.FullName + "\\" + line.Trim().Substring(33).Trim();
+                            }
+                            fs.IsChecksummed = 9;
+                            lists.Add(fs);
+                        }
+                    }
+                }
+                foreach (string line in GetFiles(folderList[i], "*.*", false))
+                {
+                    try
+                    {
+                        string md5hash = ComputeMD5(line);
+                        FileCheckStat fcs = lists.FirstOrDefault(s => s.hash == md5hash && s.filepath == line);
+                        if (fcs != null)
+                        {//old file checksummed
+                            foreach (var file in lists.Where(s => s.hash == md5hash && s.filepath == line))
+                            {
+                                file.IsChecksummed = 1;
+                            }
+                        }
+                        else
+                        {
+                            FileCheckStat targetfcs = lists.FirstOrDefault(s => s.hash != md5hash && s.filepath == line);
+                            if (targetfcs != null)
+                            {//different file with duplicate filename or file corrupted
+                                targetfcs.IsChecksummed = 2;
+                                DamagedList.Add(targetfcs);
+                                lists.Remove(targetfcs);
+                            }
+                            //new file
+                            FileCheckStat fs = new FileCheckStat()
+                            {
+                                hash = md5hash,
+                                filepath = line,
+                                IsChecksummed = 0
+                            };
+                            lists.Add(fs);
+                        }
+                    }
+                    catch (UnauthorizedAccessException uaex)
+                    {
+                        Console.WriteLine(uaex.Message);
+                        using (StreamWriter file = File.AppendText(log))
+                        {
+                            file.WriteLine(uaex.Message);
+                        }
+                    }
+                }
+                if (lists.Any())
+                {
+                    foreach (FileCheckStat fss in lists) //.Where(s => s.IsChecksummed != 2 && s.IsChecksummed != 9)
+                    {
+                        fss.filepath = fss.filepath.Replace(folderList[i] + "\\", "");
+                    }
+                    OK += lists.Count;
+                    lists = Sort(lists);
+                    foreach (FileCheckStat fss in lists.Where(s => s.IsChecksummed != 2 && s.IsChecksummed != 9))
+                    {
+                        builder.Append(fss.hash + " *" + fss.filepath).AppendLine();
+                    }
+                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + ".md5");
+                    using (StreamWriter writer = File.CreateText(output))
+                    {
+                        writer.Write(builder.ToString());
+                    }
+                    builder.Clear();
+                }
+
+                if (DamagedList.Any())
+                {
+                    foreach (FileCheckStat fss in DamagedList)
+                    {
+                        fss.filepath = fss.filepath.Replace(folderList[i] + "\\", "");
+                    }
+                    Damaged += DamagedList.Count;
+                    foreach (FileCheckStat fss in DamagedList)
+                    {
+                        dmgbuilder.Append(fss.hash + " *" + fss.filepath).AppendLine();
+                    }
+                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + "-damaged.md5");
+                    using (StreamWriter writer = File.CreateText(output))
+                    {
+                        writer.Write(dmgbuilder.ToString());
+                    }
+                    dmgbuilder.Clear();
+                    DamagedList.Clear();
+                }
+                MissingList = lists.Where(s => s.IsChecksummed == 9).ToList();
+                if (MissingList.Any())
+                {
+                    Missing += MissingList.Count;
+                    foreach (FileCheckStat fss in MissingList)
+                    {
+                        missingbuilder.Append(fss.hash + " *" + fss.filepath).AppendLine();
+                    }
+                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + "-missing.md5");
+                    using (StreamWriter writer = File.CreateText(output))
+                    {
+                        writer.Write(missingbuilder.ToString());
+                    }
+                    missingbuilder.Clear();
+                    MissingList.Clear();
+                }
+                lists.Clear();
+
+                TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + folderList.Count) / (folderList.Count * 2), 100);
+                TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
+                TotalLines = i + 1;
+                Console.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+                using (StreamWriter file = File.AppendText(log))
+                {
+                    file.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+                }
+            }
+            TimeSpan ts = DateTime.Now.Subtract(PStart);
+            Console.WriteLine("Md5 checksume files generated : " + folderList.Count + ", Total files checksumed : " + OK);
+            Console.WriteLine("Damaged files : " + Damaged + ", Files missing : " + Missing);
+            Console.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            Console.WriteLine("Time Elapse : " + ts.ToString());
+            using (StreamWriter file = File.AppendText(log))
+            {
+                file.WriteLine("Md5 checksume files generated : " + folderList.Count + ", Total files checksumed : " + OK);
+                file.WriteLine("Damaged files : " + Damaged + ", Files missing : " + Missing);
+                file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                file.WriteLine("Time Elapse : " + ts.ToString());
+            }
+        }
         static void VerifyPath()
         {
             int Exist = 0, Toolong = 0, Missing = 0;
@@ -329,90 +498,90 @@ namespace md5Verifier
             }
             Console.WriteLine("Completed!");
         }
-        static void Create()
-        {
-            DateTime PStart = DateTime.Now;
-            int TotalLines = 0, OK = 0;
-            List<string> folderList = Getfolders(Checksumfile).ToList();
-            string log = output;
-            for (int i = 0; i < folderList.Count; i++)
-            {
-                List<FileStruct> lists = new List<FileStruct>();
-                StringBuilder builder = new StringBuilder();
+        //static void Create()
+        //{
+        //    DateTime PStart = DateTime.Now;
+        //    int TotalLines = 0, OK = 0;
+        //    List<string> folderList = Getfolders(Checksumfile).ToList();
+        //    string log = output;
+        //    for (int i = 0; i < folderList.Count; i++)
+        //    {
+        //        List<FileStruct> lists = new List<FileStruct>();
+        //        StringBuilder builder = new StringBuilder();
 
-                foreach (string line in GetFiles(folderList[i], "*.*", false))
-                {
-                    try
-                    {
-                        FileStruct fs = new FileStruct()
-                        {
-                            hash = ComputeMD5(line),
-                            filepath = line.Replace(folderList[i] + "\\", "")
-                        };
-                        lists.Add(fs);
-                    }
-                    catch (UnauthorizedAccessException uaex)
-                    {
-                        Console.WriteLine(uaex.Message);
-                        using (StreamWriter file = File.AppendText(log))
-                        {
-                            file.WriteLine(uaex.Message);
-                        }
-                    }
-                }
-                if (lists.Any())
-                {
-                    foreach (FileStruct fss in lists)
-                    {
-                        builder.Append(fss.hash + " *" + fss.filepath).AppendLine();
-                        OK++;
-                    }
-                    lists.Clear();
-                }
+        //        foreach (string line in GetFiles(folderList[i], "*.*", false))
+        //        {
+        //            try
+        //            {
+        //                FileStruct fs = new FileStruct()
+        //                {
+        //                    hash = ComputeMD5(line),
+        //                    filepath = line.Replace(folderList[i] + "\\", "")
+        //                };
+        //                lists.Add(fs);
+        //            }
+        //            catch (UnauthorizedAccessException uaex)
+        //            {
+        //                Console.WriteLine(uaex.Message);
+        //                using (StreamWriter file = File.AppendText(log))
+        //                {
+        //                    file.WriteLine(uaex.Message);
+        //                }
+        //            }
+        //        }
+        //        if (lists.Any())
+        //        {
+        //            foreach (FileStruct fss in lists)
+        //            {
+        //                builder.Append(fss.hash + " *" + fss.filepath).AppendLine();
+        //                OK++;
+        //            }
+        //            lists.Clear();
+        //        }
 
-                if (builder.Length > 0)
-                {
-                    bool avail = false;
-                    int retry = 1;
-                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + ".md5");
-                    while (!avail)
-                    {
-                        if (!File.Exists(output))
-                        {
-                            avail = true;
-                        }
-                        else
-                        {
-                            output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + retry.ToString() + ".md5");
-                            retry++;
-                        }
-                    }
-                    using (TextWriter writer = File.CreateText(output))
-                    {
-                        writer.Write(builder.ToString());
-                    }
-                    builder.Clear();
-                }
-                TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + folderList.Count) / (folderList.Count * 2), 100);
-                TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
-                TotalLines = i + 1;
-                Console.WriteLine(Convert.ToString(TotalLines) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
-                using (StreamWriter file = File.AppendText(log))
-                {
-                    file.WriteLine(Convert.ToString(TotalLines) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
-                }
-            }
-            TimeSpan ts = DateTime.Now.Subtract(PStart);
-            Console.WriteLine("Md5 checksume files generated : " + TotalLines + ", Total files checksumed : " + OK);
-            Console.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-            Console.WriteLine("Time Elapse : " + ts.ToString());
-            using (StreamWriter file = File.AppendText(log))
-            {
-                file.WriteLine("Md5 checksume files generated : " + TotalLines + ", Total files checksumed : " + OK);
-                file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                file.WriteLine("Time Elapse : " + ts.ToString());
-            }
-        }
+        //        if (builder.Length > 0)
+        //        {
+        //            bool avail = false;
+        //            int retry = 1;
+        //            output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + ".md5");
+        //            while (!avail)
+        //            {
+        //                if (!File.Exists(output))
+        //                {
+        //                    avail = true;
+        //                }
+        //                else
+        //                {
+        //                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + retry.ToString() + ".md5");
+        //                    retry++;
+        //                }
+        //            }
+        //            using (TextWriter writer = File.CreateText(output))
+        //            {
+        //                writer.Write(builder.ToString());
+        //            }
+        //            builder.Clear();
+        //        }
+        //        TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + folderList.Count) / (folderList.Count * 2), 100);
+        //        TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
+        //        TotalLines = i + 1;
+        //        Console.WriteLine(Convert.ToString(TotalLines) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+        //        using (StreamWriter file = File.AppendText(log))
+        //        {
+        //            file.WriteLine(Convert.ToString(TotalLines) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+        //        }
+        //    }
+        //    TimeSpan ts = DateTime.Now.Subtract(PStart);
+        //    Console.WriteLine("Md5 checksume files generated : " + TotalLines + ", Total files checksumed : " + OK);
+        //    Console.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        //    Console.WriteLine("Time Elapse : " + ts.ToString());
+        //    using (StreamWriter file = File.AppendText(log))
+        //    {
+        //        file.WriteLine("Md5 checksume files generated : " + TotalLines + ", Total files checksumed : " + OK);
+        //        file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        //        file.WriteLine("Time Elapse : " + ts.ToString());
+        //    }
+        //}
         static private List<string> GetFiles(string path, string pattern, bool UseDateFilter)
         {
             var files = new List<string>();
@@ -452,7 +621,7 @@ namespace md5Verifier
             switch (pattern)
             {
                 case "*.*": //Create
-                    return files.Where(x => !x.ToLowerInvariant().Contains("thumbs.db") && !x.ToLowerInvariant().Contains("desktop.ini") && !x.ToLowerInvariant().Contains("md5")).ToList();
+                    return files.Where(x => !x.ToLowerInvariant().Contains("thumbs.db") && !x.ToLowerInvariant().Contains("desktop.ini") && !x.ToLowerInvariant().Contains(".md5")).ToList();
 
                 default: //Verify
                     return files.Where(x => !x.ToLowerInvariant().Contains("thumbs.db") && !x.ToLowerInvariant().Contains("desktop.ini")).ToList();
@@ -503,6 +672,17 @@ namespace md5Verifier
                     return BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", "").ToLower();
                 }
             }
+        }
+        static private List<FileCheckStat> Sort(List<FileCheckStat> t)
+        {
+            int subfolderindex = t.FindIndex(a => a.filepath.Contains("\\"));
+            List<FileCheckStat> FirstHalf = t.Where(a => a.filepath.Contains("\\")).ToList();
+            FirstHalf.Sort((a, b) => a.filepath.CompareTo(b.filepath));
+            //List<FileCheckStat> firsthalf = t.Take(subfolderindex).OrderBy(x => x.filepath).ToList();
+            //List<FileCheckStat> Secondhalf = t.Skip(subfolderindex).OrderBy(x => x.filepath).ToList();
+            List<FileCheckStat> SecondHalf = t.Where(a => !a.filepath.Contains("\\")).ToList();
+            SecondHalf.Sort((a, b) => a.filepath.CompareTo(b.filepath));
+            return new List<FileCheckStat>(FirstHalf.Concat(SecondHalf).ToList());
         }
     }
 }
