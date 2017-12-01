@@ -377,7 +377,7 @@ namespace md5Verifier
                     {
                         builder.Append(fss.hash + " *" + fss.filepath).AppendLine();
                     }
-                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + ".md5");
+                    output = Path.Combine(folderList[i], Path.GetFileName(folderList[i]) + ".md5");
                     using (StreamWriter writer = File.CreateText(output))
                     {
                         writer.Write(builder.ToString());
@@ -396,7 +396,7 @@ namespace md5Verifier
                     {
                         dmgbuilder.Append(fss.hash + " *" + fss.filepath).AppendLine();
                     }
-                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + "-damaged.md5");
+                    output = Path.Combine(folderList[i], Path.GetFileName(folderList[i]) + "-damaged.md5");
                     using (StreamWriter writer = File.CreateText(output))
                     {
                         writer.Write(dmgbuilder.ToString());
@@ -412,7 +412,7 @@ namespace md5Verifier
                     {
                         missingbuilder.Append(fss.hash + " *" + fss.filepath).AppendLine();
                     }
-                    output = Path.Combine(folderList[i], Path.GetFileNameWithoutExtension(folderList[i]) + "-missing.md5");
+                    output = Path.Combine(folderList[i], Path.GetFileName(folderList[i]) + "-missing.md5");
                     using (StreamWriter writer = File.CreateText(output))
                     {
                         writer.Write(missingbuilder.ToString());
@@ -425,10 +425,10 @@ namespace md5Verifier
                 TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + folderList.Count) / (folderList.Count * 2), 100);
                 TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
                 TotalLines = i + 1;
-                Console.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+                Console.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileName(folderList[i]) + ".md5 Generated.");
                 using (StreamWriter file = File.AppendText(log))
                 {
-                    file.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileNameWithoutExtension(folderList[i]) + ".md5 Generated.");
+                    file.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileName(folderList[i]) + ".md5 Generated.");
                 }
             }
             TimeSpan ts = DateTime.Now.Subtract(PStart);
