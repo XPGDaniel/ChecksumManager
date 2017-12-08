@@ -19,7 +19,8 @@ namespace md5Verifier
 
         static void Main(string[] args)
         {
-            Console.OutputEncoding = Encoding.Unicode;
+            Console.InputEncoding = Encoding.UTF8;
+            Console.OutputEncoding = Encoding.UTF8;
             //string reallyLongDirectory = @"C:\Users\Daniel\Source\Repos\FolderRenameAssist\FolderRenameAssist\bin\Debug\New folder\[Ano Hi Mita Hana no Namae o Bokutachi wa Mada Shiranai][あの日見た花の名前を僕達はまだ知らない.][ANK-Raws] 劇場版 あの日見た花の名前を僕達はまだ知らない。 (BDrip x264 FLAC DTS TRUE-HD 5.1ch SUP Hi10P)\New Text Document.txt";
             //string reallyLongFile = @"C:\L\[Fullmetal Alchemist][Hagane no Renkinjutsushi][鋼の錬金術師][Kuro-Raws] Fullmetal Alchemist - The Sacred Star of Milos (BDRip 1080p H.264-Hi10P FLACx2)\[Kuro-Raws] Fullmetal Alchemist - The Sacred Star of Milos (BDRip 1080p H.264-Hi10P FLACx2 DTSx3) [21A184A1].mkv";
             //Console.WriteLine($"Creating a directory that is {reallyLongDirectory.Length} characters long");
@@ -28,6 +29,7 @@ namespace md5Verifier
             //Console.WriteLine(reallyLongFile);
             //Console.WriteLine(File.Exists(reallyLongFile));
             int StartingPoint = 0;
+            Console.WriteLine("Version:" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString());
             Console.WriteLine("Proccessing Mode");
             Console.WriteLine("A. Verify Checksums");
             Console.WriteLine("\t(You could input integer instead of A, initial index is 0.)");
@@ -36,6 +38,7 @@ namespace md5Verifier
             Console.WriteLine("C. Combine All md5s into One");
             Console.WriteLine("D. Create Checksum for every folder.");
             Console.WriteLine("\t(append input date format yyyy-MM-dd as Date filter, like d " + DateTime.Today.ToString("yyyy-MM-dd") + " .)");
+            Console.WriteLine("E. Check all video files for corruption.");
             Console.WriteLine("Select Proccessing Mode : ");
             try
             {
@@ -81,6 +84,7 @@ namespace md5Verifier
                             CombineOnly = true;
                             break;
                         case "d":
+                        case "e":
                             VerifyChecksums = false;
                             CombineOnly = false;
                             break;
@@ -105,16 +109,31 @@ namespace md5Verifier
                 {
                     case 'd':
                         Exp(0);
+                        output = Checksumfile + "\\output_ChecksumRefresh_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".txt";
+                        //    Create();
                         break;
                     case 'b':
+                        output = Checksumfile + "\\output_PathVerify_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".txt";
                         VerifyPath();
                         break;
-                    //case 'd':
-                    //    Create();
-                    //    break;
+                    case 'e':
+                        if (File.Exists(@"C:\ffmpeg\bin\ffmpeg.exe"))
+                        {
+                            output = Checksumfile + "\\output_VideoCorruptionChecks_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".txt";
+                            Exam();
+                        }
+                        else
+                        {
+                            Console.WriteLine("ffmpeg not found.");
+                        }
+                        break;
                     default:
                     case 'a':
+                        output = Checksumfile + "\\output_ChecksumVerify_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".txt";
+                        Verify(StartingPoint);
+                        break;
                     case 'c':
+                        output = Checksumfile + "\\output_Combined_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".md5";
                         Verify(StartingPoint);
                         break;
                 }
@@ -252,6 +271,7 @@ namespace md5Verifier
                 TimeSpan ts = DateTime.Now.Subtract(PStart);
                 using (StreamWriter file = File.AppendText(output))
                 {
+                    file.WriteLine("Version:" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString());
                     file.WriteLine("Total files checked : " + TotalLines);
                     file.WriteLine("Good : " + OK + ", Damaged : " + Damaged + ", Missing : " + Missing);
                     file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
@@ -438,6 +458,7 @@ namespace md5Verifier
             Console.WriteLine("Time Elapse : " + ts.ToString());
             using (StreamWriter file = File.AppendText(log))
             {
+                file.WriteLine("Version:" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString());
                 file.WriteLine("Md5 checksume files generated : " + folderList.Count + ", Total files checksumed : " + OK);
                 file.WriteLine("Damaged files : " + Damaged + ", Files missing : " + Missing);
                 file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
@@ -489,12 +510,12 @@ namespace md5Verifier
             }
             using (StreamWriter file = File.AppendText(output))
             {
+                file.WriteLine("Version:" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString());
                 file.WriteLine("Total files checked : " + fileList.Count);
                 file.WriteLine("Exist : " + Exist + ", Toolong : " + Toolong + ", Missing : " + Missing);
                 Console.WriteLine("Total files checked : " + fileList.Count);
                 Console.WriteLine("Exist : " + Exist + ", Toolong : " + Toolong + ", Missing : " + Missing);
                 file.WriteLine("Verification Completed");
-                file.WriteLine("----------------------");
             }
             Console.WriteLine("Completed!");
         }
@@ -582,6 +603,111 @@ namespace md5Verifier
         //        file.WriteLine("Time Elapse : " + ts.ToString());
         //    }
         //}
+        static void Exam()
+        {
+            DateTime PStart = DateTime.Now;
+            List<string> trces = GetVideoFilesOnly(Checksumfile);
+            string log = output;
+            if (!File.Exists(log))
+            {
+                using (StreamWriter file = File.CreateText(output))
+                {
+                }
+            }
+            foreach (var line in trces)
+            {
+                try
+                {
+                    Console.WriteLine(line.Replace(Checksumfile, "")+ " checking...");
+                    using (StreamWriter file = File.AppendText(log))
+                    {
+                        file.WriteLine(line.Replace(Checksumfile, "") + " checking...");
+                    }
+                    using (Process p = new Process())
+                    {
+                        p.StartInfo.FileName = @"C:\ffmpeg\bin\ffmpeg.exe";
+                        string s = @" -v error -i """ + line + @""" -f null -";
+                        p.StartInfo.Arguments = s;
+                        p.StartInfo.UseShellExecute = false;
+                        p.StartInfo.WorkingDirectory = Checksumfile;
+                        p.StartInfo.RedirectStandardOutput = true;
+                        //p.StartInfo.StandardOutputEncoding = Encoding.Unicode;
+                        p.StartInfo.RedirectStandardError = true;
+                        //p.StartInfo.StandardErrorEncoding = Encoding.Unicode;
+                        p.StartInfo.CreateNoWindow = false; //Default:true
+
+                        p.EnableRaisingEvents = true;
+                        p.OutputDataReceived += (a, e) => {
+                            if (!string.IsNullOrEmpty(e.Data))
+                            {
+                                using (StreamWriter file = File.AppendText(log))
+                                {
+                                    file.WriteLine(e.Data);
+                                }
+                                Console.WriteLine(e.Data);
+                            }
+                        };
+                        p.ErrorDataReceived += (a, e) => {
+                            if (!string.IsNullOrEmpty(e.Data))
+                            {
+                                using (StreamWriter file = File.AppendText(log))
+                                {
+                                    file.WriteLine($@"Error: {e.Data}");
+                                }
+                                Console.WriteLine($@"Error: {e.Data}");
+                            }
+                        };
+                        p.Start();
+
+                        p.BeginOutputReadLine();
+                        p.BeginErrorReadLine();
+                        //using (StreamWriter writer = File.CreateText(output))
+                        //{
+                        //    writer.Write("Checking....");
+                        //}
+                        //Console.WriteLine("Checking....");
+                        p.WaitForExit();
+                        if (p.HasExited)
+                        {
+                            p.CancelErrorRead();
+                            p.CancelOutputRead();
+                            p.Close();
+                            Console.WriteLine(line.Replace(Checksumfile, "") + " checks Completed");
+                            using (StreamWriter file = File.AppendText(log))
+                            {
+                                file.WriteLine(line.Replace(Checksumfile, "") + " checks Completed");
+                            }
+                        }
+                    }
+                }
+                catch (UnauthorizedAccessException uaex)
+                {
+                    Console.WriteLine(uaex.ToString());
+                    using (StreamWriter file = File.AppendText(log))
+                    {
+                        file.Write(uaex.ToString());
+                    }
+                }
+                catch (Exception gex)
+                {
+                    Console.WriteLine(gex.ToString());
+                    using (StreamWriter file = File.AppendText(log))
+                    {
+                        file.Write(gex.ToString());
+                    }
+                }
+            }
+
+            TimeSpan ts = DateTime.Now.Subtract(PStart);
+            Console.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            Console.WriteLine("Time Elapse : " + ts.ToString());
+            using (StreamWriter file = File.AppendText(log))
+            {
+                file.WriteLine("Version:" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString());
+                file.WriteLine("Completed  @ " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                file.WriteLine("Time Elapse : " + ts.ToString());
+            }
+        }
         static private List<string> GetFiles(string path, string pattern, bool UseDateFilter)
         {
             var files = new List<string>();
@@ -627,6 +753,29 @@ namespace md5Verifier
                     return files.Where(x => !x.ToLowerInvariant().Contains("thumbs.db") && !x.ToLowerInvariant().Contains("desktop.ini")).ToList();
 
             }
+        }
+        static private List<string> GetVideoFilesOnly(string path)
+        {
+            var extensions = new[] { "*.mkv", "*.mp4", "*.avi", "*.wmv", "*.rmvb", "*.ogg", "*.webm" };
+            List<string> files = new List<string>();
+            try
+            {
+                if (!path.Contains("$RECYCLE.BIN") && !path.Contains("#recycle") && !path.Contains("@Recycle"))
+                {
+                    List<string> candidates = extensions.SelectMany(ext => Directory.GetFiles(path, ext, SearchOption.AllDirectories)).ToList();
+                    foreach (string c in candidates)
+                    {
+                        FileInfo fi = new FileInfo(c);
+                        files.Add(fi.FullName);
+
+                    }
+                }
+            }
+            catch (UnauthorizedAccessException) { }
+            if (files.Count > 0)
+                return files.OrderBy(r => Path.GetDirectoryName(r)).ToList();
+            else
+                return null;
         }
         static private List<string> Getfolders(string path)
         {
