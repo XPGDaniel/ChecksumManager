@@ -33,7 +33,7 @@ namespace md5Verifier
             Console.WriteLine("Proccessing Mode");
             Console.WriteLine("A. Verify Checksums");
             Console.WriteLine("\t(You could input integer instead of A, initial index is 0.)");
-            Console.WriteLine("\t(or input date format yyyy-MM-dd as Date filter, like " + DateTime.Today.ToString("yyyy-MM-dd") + " .)");
+            Console.WriteLine("\t(or input date format yyyy-MM-dd as Date filter, like " + DateTime.Today.AddHours(8).ToString("yyyy-MM-dd") + " .)");
             Console.WriteLine("B. Verify File Existences and Path Length");
             Console.WriteLine("C. Combine All md5s into One");
             Console.WriteLine("D. Create Checksum for every folder.");
@@ -108,8 +108,8 @@ namespace md5Verifier
                 switch (response.ToLowerInvariant()[0])
                 {
                     case 'd':
-                        Exp(0);
                         output = Checksumfile + "\\output_ChecksumRefresh_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".txt";
+                        Exp(0);
                         //    Create();
                         break;
                     case 'b':
@@ -618,7 +618,7 @@ namespace md5Verifier
             {
                 try
                 {
-                    Console.WriteLine(line.Replace(Checksumfile, "")+ " checking...");
+                    Console.WriteLine(line.Replace(Checksumfile, "") + " checking...");
                     using (StreamWriter file = File.AppendText(log))
                     {
                         file.WriteLine(line.Replace(Checksumfile, "") + " checking...");
@@ -637,7 +637,8 @@ namespace md5Verifier
                         p.StartInfo.CreateNoWindow = false; //Default:true
 
                         p.EnableRaisingEvents = true;
-                        p.OutputDataReceived += (a, e) => {
+                        p.OutputDataReceived += (a, e) =>
+                        {
                             if (!string.IsNullOrEmpty(e.Data))
                             {
                                 using (StreamWriter file = File.AppendText(log))
@@ -647,7 +648,8 @@ namespace md5Verifier
                                 Console.WriteLine(e.Data);
                             }
                         };
-                        p.ErrorDataReceived += (a, e) => {
+                        p.ErrorDataReceived += (a, e) =>
+                        {
                             if (!string.IsNullOrEmpty(e.Data))
                             {
                                 using (StreamWriter file = File.AppendText(log))
@@ -714,30 +716,40 @@ namespace md5Verifier
 
             try
             {
-                if (!path.Contains("$RECYCLE.BIN") && !path.Contains("#recycle") && !path.Contains("@Recycle"))
+                if (!path.Contains("$RECYCLE.BIN") && !path.Contains("#recycle") && !path.Contains("@Recycle") && !path.Contains("@eaDir") && !path.Contains(".@__thumb"))
                 {
-                    if (UseDateFilter)
+                    //if (UseDateFilter)
+                    //{
+                    string[] candidates = Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly);
+                    foreach (string c in candidates)
                     {
-                        string[] candidates = Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly);
-                        foreach (string c in candidates)
+                        FileInfo fi = new FileInfo(c);
+                        if (!fi.Attributes.HasFlag(FileAttributes.Hidden))
                         {
-                            FileInfo fi = new FileInfo(c);
-                            DateTime FileDate = DateTime.MinValue;
-                            if (fi.LastWriteTime > fi.CreationTime)
-                                FileDate = fi.LastWriteTime;
+                            if (UseDateFilter)
+                            {
+                                DateTime FileDate = DateTime.MinValue;
+                                if (fi.LastWriteTime > fi.CreationTime)
+                                    FileDate = fi.LastWriteTime;
+                                else
+                                    FileDate = fi.CreationTime;
+                                if (Convert.ToDateTime(FileDate.ToString("yyyy-MM-dd")) >= FilterDate)
+                                //&& (fi.FullName.Substring(fi.FullName.Length-4).ToLowerInvariant().Contains("md5") == false))
+                                {
+                                    files.Add(c);
+                                }
+                            }
                             else
-                                FileDate = fi.CreationTime;
-                            if (Convert.ToDateTime(FileDate.ToString("yyyy-MM-dd")) >= FilterDate)
-                            //&& (fi.FullName.Substring(fi.FullName.Length-4).ToLowerInvariant().Contains("md5") == false))
                             {
                                 files.Add(c);
                             }
                         }
                     }
-                    else
-                    {
-                        files.AddRange(Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly));
-                    }
+                    //}
+                    //else
+                    //{
+                    //    files.AddRange(Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly));
+                    //}
                     foreach (var directory in Directory.GetDirectories(path))
                         files.AddRange(GetFiles(directory, pattern, UseDateFilter));
                 }
@@ -785,28 +797,39 @@ namespace md5Verifier
             {
                 //var results = Directory.GetDirectories(path).ToList();
                 //folders = results.Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information")).ToList();
-                if (UseDateFilter)
+                //if (UseDateFilter)
+                //{
+                string[] candidates = Directory.GetDirectories(path);
+                foreach (string c in candidates)
                 {
-                    string[] candidates = Directory.GetDirectories(path);
-                    foreach (string c in candidates)
+                    DirectoryInfo di = new DirectoryInfo(c);
+                    if ((di.Attributes & FileAttributes.Hidden) == 0)
                     {
-                        DirectoryInfo di = new DirectoryInfo(c);
-                        DateTime DirectoryDate = DateTime.MinValue;
-                        if (di.LastWriteTime > di.CreationTime)
-                            DirectoryDate = di.LastWriteTime;
-                        else
-                            DirectoryDate = di.CreationTime;
-                        if (Convert.ToDateTime(DirectoryDate.ToString("yyyy-MM-dd")) >= FilterDate)
+                        if (UseDateFilter)
                         {
+                            DateTime DirectoryDate = DateTime.MinValue;
+                            if (di.LastWriteTime > di.CreationTime)
+                                DirectoryDate = di.LastWriteTime;
+                            else
+                                DirectoryDate = di.CreationTime;
+                            if (Convert.ToDateTime(DirectoryDate.ToString("yyyy-MM-dd")) >= FilterDate)
+                            {
+                                folders.Add(c);
+                            }
+                        }
+                        else
+                        {
+                            //folders.AddRange(Directory.GetDirectories(path).ToList().Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information") && !x.Contains("@Recycle") && !x.Contains("@eaDir") && !path.Contains(".@__thumb")).ToList());
                             folders.Add(c);
                         }
                     }
-                    folders = folders.Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information") && !x.Contains("@Recycle")).ToList();
                 }
-                else
-                {
-                    folders.AddRange(Directory.GetDirectories(path).ToList().Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information") && !x.Contains("@Recycle")).ToList());
-                }
+                folders = folders.Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information") && !x.Contains("@Recycle") && !x.Contains("@eaDir") && !path.Contains(".@__thumb")).ToList();
+                //}
+                //else
+                //{
+                //    folders.AddRange(Directory.GetDirectories(path).ToList().Where(x => !x.Contains("$RECYCLE.BIN") && !x.Contains("#recycle") && !x.Contains("System Volume Information") && !x.Contains("@Recycle") && !x.Contains("@eaDir") && !path.Contains(".@__thumb")).ToList());
+                //}
             }
             catch (UnauthorizedAccessException) { }
 
