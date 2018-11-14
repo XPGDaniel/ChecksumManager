@@ -7,8 +7,8 @@
     <ProjectGuid>{2FB75BFB-09B9-46ED-A36C-9BA2C40F0F8F}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>md5Verifier</RootNamespace>
-    <AssemblyName>md5Verifier</AssemblyName>
+    <RootNamespace>ChecksumManager</RootNamespace>
+    <AssemblyName>ChecksumManager</AssemblyName>
     <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <NuGetPackageImportStamp>
@@ -52,11 +52,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="File.cs" />
-    <Compile Include="FileCheckStat.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TaskbarProgress.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -67,6 +64,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="FodyWeavers.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SharedLib\SharedLib.csproj">
+      <Project>{29dca743-2007-433c-8bed-55606d7d7e93}</Project>
+      <Name>SharedLib</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="Icon.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

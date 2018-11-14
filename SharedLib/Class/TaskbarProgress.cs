@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace md5Verifier
+namespace SharedLib.Class
 {
     public static class TaskbarProgress
     {
