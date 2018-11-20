@@ -6,11 +6,13 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace SharedLib.Class
 {
     public class Processing
     {
+        private static object lockMe = new object();
         public static void Verify(string SearchPath, string ReportFile, Mode Mode, int StartingPoint = 0, DateTime? FilterDate = null, bool UseDateFilter = false)
         {
             DateTime PStart = DateTime.Now;
@@ -81,7 +83,7 @@ namespace SharedLib.Class
                 FileList = ProcessFilesInFolder(folderList[i], ReportFile, FileList, DamagedList);
                 if (FileList.Any())
                 {
-                    FileList = Sort(FileList);
+                    FileList = Sort(FileList, folderList[i]);
                     HealthyList = FileList.Where(s => s.IsChecksummed != ChecksumStat.DuplicateNameOrCorrupted && s.IsChecksummed != ChecksumStat.Init).ToList();
                     if (HealthyList.Any())
                     {
@@ -94,7 +96,7 @@ namespace SharedLib.Class
                     DamagedList = FileList.Where(s => s.IsChecksummed == ChecksumStat.DuplicateNameOrCorrupted).ToList();
                     if (DamagedList.Any())
                     {
-                        DamagedList = Sort(DamagedList);
+                        DamagedList = Sort(DamagedList, folderList[i]);
                         if (ProcessGeneratedList(DamagedList, ListType.Damaged, folderList[i]))
                         {
                             Report.Damaged += DamagedList.Count;
@@ -104,7 +106,7 @@ namespace SharedLib.Class
                     MissingList = FileList.Where(s => s.IsChecksummed == ChecksumStat.Init).ToList();
                     if (MissingList.Any())
                     {
-                        MissingList = Sort(MissingList);
+                        MissingList = Sort(MissingList, folderList[i]);
                         if (ProcessGeneratedList(MissingList, ListType.Missing, folderList[i]))
                         {
                             Report.Missing += MissingList.Count;
@@ -125,6 +127,130 @@ namespace SharedLib.Class
             }
             TimeSpan Elapsed = DateTime.Now.Subtract(PStart);
             SummariseReport(ReportFile, Mode, Elapsed, Report);
+        }
+        public static void ParalleRefresh(string SearchPath, string ReportFile, Mode Mode, ProcessingPower ProcessingPower, int StartingPoint = 0, DateTime? FilterDate = null, bool UseDateFilter = false)
+        {
+            DateTime PStart = DateTime.Now;
+            Output_ProcessReport Report = new Output_ProcessReport();
+            List<FileItem> FileList = new List<FileItem>();
+            List<FileItem> HealthyList = new List<FileItem>();
+            List<FileItem> DamagedList = new List<FileItem>();
+            List<FileItem> MissingList = new List<FileItem>();
+            List<string> folderList = Retriever.Getfolders(SearchPath, FilterDate, UseDateFilter);
+            List<string> md5List = Retriever.GetFiles(SearchPath, SearchExtension.MD5, FilterDate, UseDateFilter);
+            if (!File.Exists(ReportFile))
+            {
+                CreateReportFile(ReportFile, Mode, null);
+            }
+            Console.WriteLine("No. of md5 : " + md5List.Count);
+            Console.WriteLine("No. of folders : " + folderList.Count);
+            for (int i = StartingPoint; i < folderList.Count; i++)
+            {
+                string md5File = md5List.FirstOrDefault(s => Path.GetFileNameWithoutExtension(s) == Path.GetFileName(folderList[i]));
+                if (!string.IsNullOrEmpty(md5File))
+                {
+                    FileList = BuildFileItemList(md5File);
+                }
+                FileList = PProcessFilesInFolder(folderList[i], ReportFile, FileList, DamagedList, ProcessingPower);
+                if (FileList.Any())
+                {
+                    FileList = Sort(FileList, folderList[i]);
+                    HealthyList = FileList.Where(s => s.IsChecksummed != ChecksumStat.DuplicateNameOrCorrupted && s.IsChecksummed != ChecksumStat.Init).ToList();
+                    if (HealthyList.Any())
+                    {
+                        if (ProcessGeneratedList(HealthyList, ListType.Healthy, folderList[i]))
+                        {
+                            Report.Healthy += HealthyList.Count;
+                        }
+                        HealthyList.Clear();
+                    }
+                    DamagedList = FileList.Where(s => s.IsChecksummed == ChecksumStat.DuplicateNameOrCorrupted).ToList();
+                    if (DamagedList.Any())
+                    {
+                        DamagedList = Sort(DamagedList, folderList[i]);
+                        if (ProcessGeneratedList(DamagedList, ListType.Damaged, folderList[i]))
+                        {
+                            Report.Damaged += DamagedList.Count;
+                        }
+                        DamagedList.Clear();
+                    }
+                    MissingList = FileList.Where(s => s.IsChecksummed == ChecksumStat.Init).ToList();
+                    if (MissingList.Any())
+                    {
+                        MissingList = Sort(MissingList, folderList[i]);
+                        if (ProcessGeneratedList(MissingList, ListType.Missing, folderList[i]))
+                        {
+                            Report.Missing += MissingList.Count;
+                        }
+                        MissingList.Clear();
+                    }
+                    FileList.Clear();
+                }
+                SetProgressBar(i, folderList.Count);
+                //TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + folderList.Count) / (folderList.Count * 2), 100);
+                //TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
+                Console.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileName(folderList[i]) + OutputExtension.MD5 + " Generated.");
+                using (StreamWriter file = File.AppendText(ReportFile))
+                {
+                    file.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileName(folderList[i]) + OutputExtension.MD5 + " Generated.");
+                }
+                Report.Total += 1;
+            }
+            TimeSpan Elapsed = DateTime.Now.Subtract(PStart);
+            SummariseReport(ReportFile, Mode, Elapsed, Report);
+            //DateTime PStart = DateTime.Now;
+            //Output_ProcessReport Report = new Output_ProcessReport();
+            //List<FileItem> FileList = new List<FileItem>();
+            //List<FileItem> HealthyList = new List<FileItem>();
+            //List<FileItem> DamagedList = new List<FileItem>();
+            //List<FileItem> MissingList = new List<FileItem>();
+            //List<string> folderList = Retriever.Getfolders(SearchPath, FilterDate, UseDateFilter);
+            //List<string> md5List = Retriever.GetFiles(SearchPath, SearchExtension.MD5, FilterDate, UseDateFilter);
+            //if (!File.Exists(ReportFile))
+            //{
+            //    CreateReportFile(ReportFile, Mode, null);
+            //}
+            //Console.WriteLine("No. of md5 : " + md5List.Count);
+            //Console.WriteLine("No. of folders : " + folderList.Count);
+            //int index = 0;
+            //StreamWriter file = File.AppendText(ReportFile);
+            ////using (StreamWriter file = File.AppendText(ReportFile))
+            ////{
+            //try
+            //{
+            //    var result = Parallel.ForEach(folderList, new ParallelOptions { MaxDegreeOfParallelism = 2 },
+            //    folder =>
+            //    {
+            //        string FolderPath = folder;
+            //        index += 1;
+            //        Task task = Task.Factory.StartNew(() =>    // Begin task
+            //        {
+            //            return TaskTest(md5List, FileList, HealthyList, DamagedList, MissingList, FolderPath, ReportFile);
+            //        })
+            //            .ContinueWith(ant =>
+            //            {
+            //                Report.Healthy += ant.Result.Healthy;
+            //                Report.Damaged += ant.Result.Damaged;
+            //                Report.Missing += ant.Result.Missing;
+            //                Report.Total += ant.Result.Total;
+            //                SetProgressBar(index, folderList.Count);
+            //                Console.WriteLine(Convert.ToString(index + 1) + "/" + folderList.Count + "\t" + Path.GetFileName(FolderPath) + OutputExtension.MD5 + " Generated.");
+            //            //using (StreamWriter file = File.AppendText(ReportFile))
+            //            //{
+            //            file.WriteLine(Convert.ToString(index + 1) + "/" + folderList.Count + "\t" + Path.GetFileName(FolderPath) + OutputExtension.MD5 + " Generated.");
+            //            //}
+            //        });
+            //    }).IsCompleted;
+            //    //if (result)
+            //    //    file.Dispose();
+            //}
+            //finally
+            //{
+            //    file.Dispose();
+            //}
+            ////}
+            //TimeSpan Elapsed = DateTime.Now.Subtract(PStart);
+            //SummariseReport(ReportFile, Mode, Elapsed, Report);
         }
         public static void VideoCheck(string SearchPath, string ReportFile, Mode Mode)
         {
@@ -174,7 +300,61 @@ namespace SharedLib.Class
             SummariseReport(ReportFile, Mode, Elapsed, Report);
         }
         #region private function
-        private static string ComputeMD5(string path)
+
+        private static Output_ProcessReport TaskTest(
+            List<string> md5List,
+            List<FileItem> FileList,
+            List<FileItem> HealthyList,
+            List<FileItem> DamagedList,
+            List<FileItem> MissingList,
+            string FolderPath,
+            string ReportFile)
+        {
+            Output_ProcessReport Report = new Output_ProcessReport();
+            string md5File = md5List.FirstOrDefault(s => Path.GetFileNameWithoutExtension(s) == Path.GetFileName(FolderPath));
+            if (!string.IsNullOrEmpty(md5File))
+            {
+                FileList = BuildFileItemList(md5File);
+            }
+            FileList = ProcessFilesInFolder(FolderPath, ReportFile, FileList, DamagedList);
+            if (FileList.Any())
+            {
+                FileList = Sort(FileList, FolderPath);
+                HealthyList = FileList.Where(s => s.IsChecksummed != ChecksumStat.DuplicateNameOrCorrupted && s.IsChecksummed != ChecksumStat.Init).ToList();
+                if (HealthyList.Any())
+                {
+                    if (ProcessGeneratedList(HealthyList, ListType.Healthy, FolderPath))
+                    {
+                        Report.Healthy += HealthyList.Count;
+                    }
+                    HealthyList.Clear();
+                }
+                DamagedList = FileList.Where(s => s.IsChecksummed == ChecksumStat.DuplicateNameOrCorrupted).ToList();
+                if (DamagedList.Any())
+                {
+                    DamagedList = Sort(DamagedList, FolderPath);
+                    if (ProcessGeneratedList(DamagedList, ListType.Damaged, FolderPath))
+                    {
+                        Report.Damaged += DamagedList.Count;
+                    }
+                    DamagedList.Clear();
+                }
+                MissingList = FileList.Where(s => s.IsChecksummed == ChecksumStat.Init).ToList();
+                if (MissingList.Any())
+                {
+                    MissingList = Sort(MissingList, FolderPath);
+                    if (ProcessGeneratedList(MissingList, ListType.Missing, FolderPath))
+                    {
+                        Report.Missing += MissingList.Count;
+                    }
+                    MissingList.Clear();
+                }
+                FileList.Clear();
+            }
+            Report.Total += 1;
+            return Report;
+        }
+        public static string ComputeMD5(string path)
         {
             using (MD5 md5 = MD5.Create())
             {
@@ -190,7 +370,8 @@ namespace SharedLib.Class
             {
                 using (StreamWriter file = File.CreateText(ReportFile))
                 {
-                    file.WriteLine($@"Mode.{ Enum.GetName(typeof(Mode), Mode) }");
+                    if (Mode != Mode.Combine_All_MD5)
+                        file.WriteLine($@"Mode.{ Enum.GetName(typeof(Mode), Mode) }");
                     if (Mode != Mode.Combine_All_MD5)
                         if (list != null)
                             if (list.Any())
@@ -246,6 +427,74 @@ namespace SharedLib.Class
                 throw ex;
             }
         }
+        private static List<FileItem> PProcessFilesInFolder(string SearchPath, string ReportFile, List<FileItem> fileList, List<FileItem> DamagedList, ProcessingPower ProcessingPower)
+        {
+            List<FileItem> Calculated = Retriever.GetFiles(SearchPath, SearchExtension.Everything, null, false).Select(x => new FileItem() { Filepath = x }).ToList();
+            ParallelOptions pOptions = new ParallelOptions();
+            switch (ProcessingPower)
+            {
+                case ProcessingPower.Half:
+                    pOptions.MaxDegreeOfParallelism = (Environment.ProcessorCount / 2);
+                    break;
+                case ProcessingPower.Full:
+                    pOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
+                    break;
+                case ProcessingPower.Single:
+                default:
+                    pOptions.MaxDegreeOfParallelism = 1;
+                    break;
+            }
+            var result = Parallel.ForEach(Calculated, pOptions,
+                file =>
+                {
+                    file.Hash = ComputeMD5(file.Filepath);
+                });
+            if (Calculated.Any())
+            {
+                foreach (FileItem file in Calculated)
+                {
+                    try
+                    {
+                        FileItem fcs = fileList.FirstOrDefault(s => s.Hash == file.Hash && s.Filepath == file.Filepath);
+                        if (fcs != null)
+                        {//old file checksummed
+                            foreach (var fileItem in fileList.Where(s => s.Hash == file.Hash && s.Filepath == file.Filepath))
+                            {
+                                fileItem.IsChecksummed = ChecksumStat.ExistingFileChecked;
+                            }
+                        }
+                        else
+                        {
+                            FileItem targetfcs = fileList.FirstOrDefault(s => s.Hash != file.Hash && s.Filepath == file.Filepath);
+                            if (targetfcs != null)
+                            {//different file with duplicate filename or file corrupted
+                                targetfcs.IsChecksummed = ChecksumStat.DuplicateNameOrCorrupted;
+                                DamagedList.Add(targetfcs);
+                                fileList.Remove(targetfcs);
+                            }
+                            //new file
+                            FileItem fs = new FileItem()
+                            {
+                                Hash = file.Hash,
+                                Filepath = file.Filepath,
+                                IsChecksummed = ChecksumStat.NewFileChecked
+                            };
+                            fileList.Add(fs);
+                        }
+                    }
+                    catch (UnauthorizedAccessException uaex)
+                    {
+                        Console.WriteLine(uaex.Message);
+                        using (StreamWriter report = File.AppendText(ReportFile))
+                        {
+                            report.WriteLine(uaex.Message);
+                        }
+                    }
+                }
+            }
+            return fileList;
+        }
+
         private static List<FileItem> ProcessFilesInFolder(string SearchPath, string ReportFile, List<FileItem> fileList, List<FileItem> DamagedList)
         {
             foreach (string file in Retriever.GetFiles(SearchPath, SearchExtension.Everything, null, false))
@@ -392,14 +641,11 @@ namespace SharedLib.Class
                 throw ex;
             }
         }
-        private static List<FileItem> Sort(List<FileItem> t)
+        private static List<FileItem> Sort(List<FileItem> t, string SearchPath)
         {
-            int subfolderindex = t.FindIndex(a => a.Filepath.Contains("\\"));
-            List<FileItem> FirstHalf = t.Where(a => a.Filepath.Contains("\\")).ToList();
+            List<FileItem> FirstHalf = t.Where(a => a.Filepath.Replace(SearchPath + "\\", "").Contains("\\")).ToList();
             FirstHalf.Sort((a, b) => a.Filepath.CompareTo(b.Filepath));
-            //List<FileCheckStat> firsthalf = t.Take(subfolderindex).OrderBy(x => x.filepath).ToList();
-            //List<FileCheckStat> Secondhalf = t.Skip(subfolderindex).OrderBy(x => x.filepath).ToList();
-            List<FileItem> SecondHalf = t.Where(a => !a.Filepath.Contains("\\")).ToList();
+            List<FileItem> SecondHalf = t.Where(a => !a.Filepath.Replace(SearchPath + "\\", "").Contains("\\")).ToList();
             SecondHalf.Sort((a, b) => a.Filepath.CompareTo(b.Filepath));
             return new List<FileItem>(FirstHalf.Concat(SecondHalf).ToList());
         }

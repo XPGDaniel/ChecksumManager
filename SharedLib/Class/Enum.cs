@@ -36,4 +36,11 @@
         VideoCheck = 0,
         FrameTrace = 1
     }
+
+    public enum ProcessingPower
+    {
+        Single = 1,
+        Half = 2,
+        Full = 3
+    }
 }

@@ -12,16 +12,19 @@ namespace SharedLib.Class
             {
                 if (input.Contains(","))
                 {
-                    Desire.Mode = (Mode)(input.Split(',')[0]).ToLowerInvariant().ToCharArray()[0];
-                    Desire.Optional_Parameter = input.Split(',')[1];
+                    string[] splitter = input.Split(',');
+                    Desire.Mode = (Mode)(splitter[0]).ToLowerInvariant().ToCharArray()[0];
+                    Desire.ProcessingPower = (ProcessingPower)(splitter[1]).ToLowerInvariant().ToCharArray()[0];
+                    if (splitter.Length > 2)
+                    {
+                        Desire.Optional_Parameter = input.Split(',')[2];
+                    }
                 }
                 else
                 {
                     Desire.Mode = (Mode)Convert.ToChar(input);
                 }
             }
-            else
-                Desire.Mode = (Mode)'a';
             return Desire;
         }
         public static string ProduceReportName(string WorkingDirectory, Mode Mode, ArgumentType aType = 0, string Argument = null)
