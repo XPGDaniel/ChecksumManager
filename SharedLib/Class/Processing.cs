@@ -738,7 +738,10 @@ namespace SharedLib.Class
                                 switch (pType)
                                 {
                                     case ProcessType.VideoCheck:
-                                        hasError = true;
+                                        if (!e.Data.Contains("Application provided invalid, non monotonically increasing dts to muxer in stream"))
+                                        {
+                                            hasError = true;
+                                        }
                                         Console.WriteLine(e.Data);
                                         Report.WriteLine(e.Data);
                                         break;
