@@ -48,85 +48,12 @@ namespace SharedLib.Class
                             file.WriteLine("----------------------");
                         }
                     Console.WriteLine(Convert.ToString(i + 1) + "/" + md5List.Count + "\t" + md5List[i].Replace(SearchPath, "") + " Checked.");
-                    //TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + md5List.Count) / (md5List.Count * 2), 100);
-                    //TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
                     SetProgressBar(i, md5List.Count);
                     lists.Clear();
                 }
             }
             TimeSpan Elapsed = DateTime.Now.Subtract(PStart);
             SummariseReport(ReportFile, Mode, Elapsed, Result);
-        }
-        public static void Refresh(string SearchPath, string ReportFile, Mode Mode, int StartingPoint = 0, DateTime? FilterDate = null, bool UseDateFilter = false)
-        {
-            DateTime PStart = DateTime.Now;
-            Output_ProcessReport Report = new Output_ProcessReport();
-            List<FileItem> FileList = new List<FileItem>();
-            List<FileItem> HealthyList = new List<FileItem>();
-            List<FileItem> DamagedList = new List<FileItem>();
-            List<FileItem> MissingList = new List<FileItem>();
-            List<string> folderList = Retriever.Getfolders(SearchPath, FilterDate, UseDateFilter);
-            List<string> md5List = Retriever.GetFiles(SearchPath, SearchExtension.MD5, FilterDate, UseDateFilter);
-            if (!File.Exists(ReportFile))
-            {
-                CreateReportFile(ReportFile, Mode, null);
-            }
-            Console.WriteLine("No. of md5 : " + md5List.Count);
-            Console.WriteLine("No. of folders : " + folderList.Count);
-            for (int i = StartingPoint; i < folderList.Count; i++)
-            {
-                string md5File = md5List.FirstOrDefault(s => Path.GetFileNameWithoutExtension(s) == Path.GetFileName(folderList[i]));
-                if (!string.IsNullOrEmpty(md5File))
-                {
-                    FileList = BuildFileItemList(md5File);
-                }
-                FileList = ProcessFilesInFolder(folderList[i], ReportFile, FileList, DamagedList);
-                if (FileList.Any())
-                {
-                    FileList = Sort(FileList, folderList[i]);
-                    HealthyList = FileList.Where(s => s.IsChecksummed != ChecksumStat.DuplicateNameOrCorrupted && s.IsChecksummed != ChecksumStat.Init).ToList();
-                    if (HealthyList.Any())
-                    {
-                        if (ProcessGeneratedList(HealthyList, ListType.Healthy, folderList[i]))
-                        {
-                            Report.Healthy += HealthyList.Count;
-                        }
-                        HealthyList.Clear();
-                    }
-                    DamagedList = FileList.Where(s => s.IsChecksummed == ChecksumStat.DuplicateNameOrCorrupted).ToList();
-                    if (DamagedList.Any())
-                    {
-                        DamagedList = Sort(DamagedList, folderList[i]);
-                        if (ProcessGeneratedList(DamagedList, ListType.Damaged, folderList[i]))
-                        {
-                            Report.Damaged += DamagedList.Count;
-                        }
-                        DamagedList.Clear();
-                    }
-                    MissingList = FileList.Where(s => s.IsChecksummed == ChecksumStat.Init).ToList();
-                    if (MissingList.Any())
-                    {
-                        MissingList = Sort(MissingList, folderList[i]);
-                        if (ProcessGeneratedList(MissingList, ListType.Missing, folderList[i]))
-                        {
-                            Report.Missing += MissingList.Count;
-                        }
-                        MissingList.Clear();
-                    }
-                    FileList.Clear();
-                }
-                SetProgressBar(i, folderList.Count);
-                //TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + folderList.Count) / (folderList.Count * 2), 100);
-                //TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
-                Console.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileName(folderList[i]) + OutputExtension.MD5 + " Generated.");
-                using (StreamWriter file = File.AppendText(ReportFile))
-                {
-                    file.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileName(folderList[i]) + OutputExtension.MD5 + " Generated.");
-                }
-                Report.Total += 1;
-            }
-            TimeSpan Elapsed = DateTime.Now.Subtract(PStart);
-            SummariseReport(ReportFile, Mode, Elapsed, Report);
         }
         public static void ParalleRefresh(string SearchPath, string ReportFile, Mode Mode, ProcessingPower ProcessingPower, int StartingPoint = 0, DateTime? FilterDate = null, bool UseDateFilter = false)
         {
@@ -151,7 +78,7 @@ namespace SharedLib.Class
                 {
                     FileList = BuildFileItemList(md5File);
                 }
-                FileList = PProcessFilesInFolder(folderList[i], ReportFile, FileList, DamagedList, ProcessingPower);
+                FileList = ProcessFilesInFolder(folderList[i], ReportFile, FileList, DamagedList, ProcessingPower);
                 if (FileList.Any())
                 {
                     FileList = Sort(FileList, folderList[i]);
@@ -187,8 +114,6 @@ namespace SharedLib.Class
                     FileList.Clear();
                 }
                 SetProgressBar(i, folderList.Count);
-                //TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + folderList.Count) / (folderList.Count * 2), 100);
-                //TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
                 Console.WriteLine(Convert.ToString((i + 1)) + "/" + folderList.Count + "\t" + Path.GetFileName(folderList[i]) + OutputExtension.MD5 + " Generated.");
                 using (StreamWriter file = File.AppendText(ReportFile))
                 {
@@ -292,68 +217,12 @@ namespace SharedLib.Class
                         else
                             Report.Healthy += 1;
                         SetProgressBar(i, videoList.Count);
-                        //TaskbarProgress.SetValue(Process.GetCurrentProcess().MainWindowHandle, ((i + 1) * 200 + trces.Count) / (trces.Count * 2), 100);
-                        //TaskbarProgress.SetState(Process.GetCurrentProcess().MainWindowHandle, TaskbarProgress.TaskbarStates.Normal);
                         Report.Total += 1;
                     }
             TimeSpan Elapsed = DateTime.Now.Subtract(PStart);
             SummariseReport(ReportFile, Mode, Elapsed, Report);
         }
         #region private function
-
-        private static Output_ProcessReport TaskTest(
-            List<string> md5List,
-            List<FileItem> FileList,
-            List<FileItem> HealthyList,
-            List<FileItem> DamagedList,
-            List<FileItem> MissingList,
-            string FolderPath,
-            string ReportFile)
-        {
-            Output_ProcessReport Report = new Output_ProcessReport();
-            string md5File = md5List.FirstOrDefault(s => Path.GetFileNameWithoutExtension(s) == Path.GetFileName(FolderPath));
-            if (!string.IsNullOrEmpty(md5File))
-            {
-                FileList = BuildFileItemList(md5File);
-            }
-            FileList = ProcessFilesInFolder(FolderPath, ReportFile, FileList, DamagedList);
-            if (FileList.Any())
-            {
-                FileList = Sort(FileList, FolderPath);
-                HealthyList = FileList.Where(s => s.IsChecksummed != ChecksumStat.DuplicateNameOrCorrupted && s.IsChecksummed != ChecksumStat.Init).ToList();
-                if (HealthyList.Any())
-                {
-                    if (ProcessGeneratedList(HealthyList, ListType.Healthy, FolderPath))
-                    {
-                        Report.Healthy += HealthyList.Count;
-                    }
-                    HealthyList.Clear();
-                }
-                DamagedList = FileList.Where(s => s.IsChecksummed == ChecksumStat.DuplicateNameOrCorrupted).ToList();
-                if (DamagedList.Any())
-                {
-                    DamagedList = Sort(DamagedList, FolderPath);
-                    if (ProcessGeneratedList(DamagedList, ListType.Damaged, FolderPath))
-                    {
-                        Report.Damaged += DamagedList.Count;
-                    }
-                    DamagedList.Clear();
-                }
-                MissingList = FileList.Where(s => s.IsChecksummed == ChecksumStat.Init).ToList();
-                if (MissingList.Any())
-                {
-                    MissingList = Sort(MissingList, FolderPath);
-                    if (ProcessGeneratedList(MissingList, ListType.Missing, FolderPath))
-                    {
-                        Report.Missing += MissingList.Count;
-                    }
-                    MissingList.Clear();
-                }
-                FileList.Clear();
-            }
-            Report.Total += 1;
-            return Report;
-        }
         public static string ComputeMD5(string path)
         {
             using (MD5 md5 = MD5.Create())
@@ -427,7 +296,7 @@ namespace SharedLib.Class
                 throw ex;
             }
         }
-        private static List<FileItem> PProcessFilesInFolder(string SearchPath, string ReportFile, List<FileItem> fileList, List<FileItem> DamagedList, ProcessingPower ProcessingPower)
+        private static List<FileItem> ProcessFilesInFolder(string SearchPath, string ReportFile, List<FileItem> fileList, List<FileItem> DamagedList, ProcessingPower ProcessingPower)
         {
             List<FileItem> Calculated = Retriever.GetFiles(SearchPath, SearchExtension.Everything, null, false).Select(x => new FileItem() { Filepath = x }).ToList();
             ParallelOptions pOptions = new ParallelOptions();
@@ -489,52 +358,6 @@ namespace SharedLib.Class
                         {
                             report.WriteLine(uaex.Message);
                         }
-                    }
-                }
-            }
-            return fileList;
-        }
-
-        private static List<FileItem> ProcessFilesInFolder(string SearchPath, string ReportFile, List<FileItem> fileList, List<FileItem> DamagedList)
-        {
-            foreach (string file in Retriever.GetFiles(SearchPath, SearchExtension.Everything, null, false))
-            {
-                try
-                {
-                    string md5hash = ComputeMD5(file);
-                    FileItem fcs = fileList.FirstOrDefault(s => s.Hash == md5hash && s.Filepath == file);
-                    if (fcs != null)
-                    {//old file checksummed
-                        foreach (var fileItem in fileList.Where(s => s.Hash == md5hash && s.Filepath == file))
-                        {
-                            fileItem.IsChecksummed = ChecksumStat.ExistingFileChecked;
-                        }
-                    }
-                    else
-                    {
-                        FileItem targetfcs = fileList.FirstOrDefault(s => s.Hash != md5hash && s.Filepath == file);
-                        if (targetfcs != null)
-                        {//different file with duplicate filename or file corrupted
-                            targetfcs.IsChecksummed = ChecksumStat.DuplicateNameOrCorrupted;
-                            DamagedList.Add(targetfcs);
-                            fileList.Remove(targetfcs);
-                        }
-                        //new file
-                        FileItem fs = new FileItem()
-                        {
-                            Hash = md5hash,
-                            Filepath = file,
-                            IsChecksummed = ChecksumStat.NewFileChecked
-                        };
-                        fileList.Add(fs);
-                    }
-                }
-                catch (UnauthorizedAccessException uaex)
-                {
-                    Console.WriteLine(uaex.Message);
-                    using (StreamWriter report = File.AppendText(ReportFile))
-                    {
-                        report.WriteLine(uaex.Message);
                     }
                 }
             }
