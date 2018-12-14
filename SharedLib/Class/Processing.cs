@@ -198,7 +198,7 @@ namespace SharedLib.Class
                             {
                                 CreateReportFile(frameTraceReport, Mode, null);
                             }
-                            ExecuteFFMPEG(ReportFile, SearchPath, videoList[i], ProcessType.FrameTrace);
+                            ExecuteFFMPEG(frameTraceReport, SearchPath, videoList[i], ProcessType.FrameTrace);
                             if (File.Exists(frameTraceReport))
                             {
                                 if (new FileInfo(frameTraceReport).Length == 0)
