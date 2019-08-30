@@ -74,8 +74,12 @@ namespace SharedLib
                         Processing.Verify(WorkingDirectory, ReportFile, Mode.Combine_All_MD5);
                         break;
                     case Mode.Create_Checksum_for_Every_Folder:
+                        if (CheckParameter.IsIndexParameter(Input.Optional_Parameter))
+                        {
+                            StartingPoint = Convert.ToInt32(Input.Optional_Parameter);
+                        }
                         ReportFile = Prepare.ProduceReportName(WorkingDirectory, Input.Mode);
-                        Processing.ParalleRefresh(WorkingDirectory, ReportFile, Mode.Create_Checksum_for_Every_Folder, Input.ProcessingPower);
+                        Processing.ParalleRefresh(WorkingDirectory, ReportFile, Mode.Create_Checksum_for_Every_Folder, Input.ProcessingPower, StartingPoint);
                         break;
                     case Mode.Check_Video_Corruption:
                         if (!File.Exists(@"C:\ffmpeg\bin\ffmpeg.exe"))
